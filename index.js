@@ -2,11 +2,11 @@
   'use strict';
 
   // =========================================================================
-  // 一、常量与安全上下文获取（严守交底文档第 03/04 章铁律）
+  // 一、常量与安全上下文获取
   // =========================================================================
   const PLUGIN_ID = 'heart-echo';
   const PLUGIN_NAME = '心语回响';
-  const PLUGIN_VERSION = '1.0.0';
+  const PLUGIN_VERSION = '1.1.0';
   const STORAGE_GLOBAL_KEY = 'he_global_settings_v1';
   const STORAGE_SHELF_KEY = 'he_character_shelf_v1';
   const FLOOR_MARK = '<!-- HEART_ECHO_SUMMARY_BLOCK -->';
@@ -19,43 +19,51 @@
     }
   }
 
-  // 纯内联线性 SVG 图标库（严守第 07/12 章禁 Emoji 视觉铁律）
+  // 纯内联线性 SVG 图标库（零 Emoji，跨设备统一）
   const ICONS = {
     echo: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/><path d="M2 12h2m16 0h2M5 5l1.5 1.5M19 5l-1.5 1.5"/></svg>',
-    close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
-    lock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
-    unlock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>',
-    shelf: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-    spark: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v4m0 10v4M3 12h4m10 0h4m-2.6-6.4l-2.8 2.8m-5.2 5.2l-2.8 2.8m0-10.8l2.8 2.8m5.2 5.2l2.8 2.8"/></svg>',
-    plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
-    trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2m-9 0v14h10V6"/></svg>',
+    close: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+    max: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
+    min: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>',
+    lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+    unlock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>',
+    shelf: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    spark: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v4m0 10v4M3 12h4m10 0h4m-2.6-6.4l-2.8 2.8m-5.2 5.2l-2.8 2.8m0-10.8l2.8 2.8m5.2 5.2l2.8 2.8"/></svg>',
+    plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    trash: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2m-9 0v14h10V6"/></svg>',
     undo: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
-    send: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>'
+    send: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
+    eyeOff: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
+    eye: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
   // =========================================================================
-  // 二、默认提示词与默认数据结构
+  // 二、默认提示词与默认数据结构（支持多人卡 profiles）
   // =========================================================================
-  const DEFAULT_PROMPT = `你是「心语回响」叙事与心智归档师。请读取提供的对话内容，结合既有记忆档案，输出严格符合以下 JSON 结构的更新数据（不要输出任何代码块标记或多余解释文字）：
+  const DEFAULT_PROMPT = `你是「心语回响」叙事与心智归档师。请读取提供的对话内容，结合既有记忆档案，输出严格符合以下 JSON 结构的更新数据（只输出合法 JSON，不要输出任何代码块标记或多余解释文字）：
 
 【核心铁律】
-1. 拒绝流水账与好感百分比：严禁使用百分比数字！用细腻的心理拉扯、性格底色守恒下的微变、嘴硬心软或下意识偏袒动作来刻画感情。
-2. 认知隔离与掉马保护：严格区分【客观事实/User秘密】与【Char目前已知的线索】。Char不知情的马甲、伪装性别、暗线，绝不可混入Char的主观认知中。
-3. 灵魂重影与关键原话：若存在故人替身/死遁重逢/宿命拉扯，重点捕捉Char理智割裂与本能被吸引的瞬间，并原样保留1-2句最戳心的关键原话台词。
-4. 防吃书铁律：严格核对已治愈旧伤、真实战力上限、物资衣着状态，严禁凭空捏造伤病卖惨。
+1. 拒绝流水账与好感百分比：严禁使用百分比数字！用细腻的心理拉扯、性格底色守恒下的当下微变、嘴硬心软或下意识偏袒动作来刻画感情。
+2. 认知隔离与掉马/伏笔保护：严格区分【客观事实/暗线底牌】与【角色目前仅知的线索】。角色不知情的马甲、伪装性别、秘密筹备，绝不可混入角色的主观认知中。
+3. 多人卡独立归档：请针对当前在场的每位主要角色分别输出对应的心智档案（characterMinds 数组），严禁把 A 角色的经历或心声混到 B 角色名下。
+4. 灵魂重影与关键原话：若存在故人替身/死遁重逢/宿命拉扯，重点捕捉角色理智割裂与本能被吸引的瞬间，并在 anchors 中原样保留1-2句最戳心的关键原话台词。
+5. 防吃书铁律：严格核对已治愈旧伤、真实战力上限、物资衣着状态，严禁凭空捏造伤病卖惨。
 
 【必须输出的合法 JSON 格式】
 {
-  "charMind": {
-    "selfBase": "角色当前自我处境、性格底色与防线的细微松动",
-    "surfaceView": "角色目前以为User是谁、已知哪些表面信息与误判",
-    "subconscious": "嘴上/理智态度 vs 行动上的下意识偏袒、双标或灵魂重影恍惚",
-    "innerVoice": "以角色第一人称写一句当下对User最真实、带张力的潜台词心声",
-    "anchors": "保留最多4条最深刻的触动瞬间与关键原话台词（格式：[场景/信物] 原话与后遗症反应）"
-  },
+  "characterMinds": [
+    {
+      "name": "角色准确名字（必须与当前在场角色名单对齐）",
+      "selfBase": "角色当下最新心境与防线的细微松动（覆盖旧状态，只写当前最新处境）",
+      "surfaceView": "角色目前以为User是谁、已知哪些表面信息与误判",
+      "subconscious": "嘴上/理智态度 vs 行动上的下意识偏袒、双标或灵魂重影恍惚",
+      "innerVoice": "以该角色第一人称写一句当下对User最真实、带张力的潜台词心声",
+      "anchors": "过去留下的核心触动瞬间与关键原话台词（最多保留4条，新旧择优迭代，格式：[场景/信物] 原话与后遗症反应）"
+    }
+  ],
   "secretLedger": {
-    "truthAndMask": "客观真相、User真实马甲/性别伪装/底牌",
-    "charClues": "角色目前已察觉的蛛丝马迹与当前怀疑方向",
+    "truthAndMask": "客观真相、User真实马甲/性别伪装、或正在铺垫的特殊剧情事件底牌",
+    "charClues": "角色目前已察觉的蛛丝马迹、或该伏笔事件当前的铺垫进度",
     "hardFacts": "不可逆物理/战力/伤病铁律黑名单（防AI吃书乱编卖惨）"
   },
   "newAct": {
@@ -65,29 +73,37 @@
   "snapshot": {
     "sceneBridge": "100字以内切口现场快照：定格最后几楼的时间地点、空气氛围与未说完的话头",
     "attireAndBody": "当下双方衣着完好度、身体微状态、距离与随身姿态",
-    "itemsAndTodos": "关键道具归属变更与未兑现的约定/伏笔"
+    "itemsAndTodos": "关键道具归属变更与未兑现的约定/待办"
   },
-  "npcs": "重要登场人物及当前立场/状态一句话备忘"
+  "npcs": "重要配角/NPC及当前立场状态一句话备忘"
 }`;
 
-  function createEmptyChatData() {
+  function createSingleProfile(name) {
+    return {
+      name: name || '主控角色',
+      present: true, // 当前是否在场参与注入与总结
+      locked: false,
+      selfBase: '',
+      surfaceView: '',
+      subconscious: '',
+      innerVoice: '',
+      anchors: ''
+    };
+  }
+
+  function createEmptyChatData(defaultCharName) {
     return {
       version: PLUGIN_VERSION,
       updatedAt: Date.now(),
-      injectMode: 'silent', // 'none' | 'silent' | 'floor'
-      actionLock: 'normal', // 'normal' | 'substantive' (专治火葬场口头挡刀复读机)
-      secretGear: 2,        // 1:潜伏 2:重影恍惚 3:违和试探 4:彻底引爆
+      injectMode: 'silent', // 'silent' | 'floor' | 'none'
+      actionLock: 'normal', // 'normal' | 'substantive'
+      initiativeGear: 1,    // 关系主动推进引擎 1:顺其自然 2:暗宠送礼 3:名分焦灼 4:捅破窗户纸(破99.99%)
+      secretGear: 2,        // 通用伏笔/掉马推进器 1:埋种潜伏 2:重影铺垫 3:试探蓄势 4:立即引爆
+      activeCharIdx: 0,
+      profiles: [createSingleProfile(defaultCharName || '主控角色')],
       locks: {
-        charMind: false,
-        userNote: true,     // User态度默认锁定防AI乱改
+        userNote: true,
         hardFacts: false
-      },
-      charMind: {
-        selfBase: '',
-        surfaceView: '',
-        subconscious: '',
-        innerVoice: '',
-        anchors: ''
       },
       userNote: {
         attitude: '',
@@ -98,14 +114,14 @@
         charClues: '',
         hardFacts: ''
       },
-      acts: [], // [{ id, title, summary, checked }]
+      acts: [],
       snapshot: {
         sceneBridge: '',
         attireAndBody: '',
         itemsAndTodos: ''
       },
       npcs: '',
-      history: [] // 最近5档后悔药快照
+      history: []
     };
   }
 
@@ -114,21 +130,21 @@
       baseUrl: '',
       apiKey: '',
       model: '',
-      theme: 'auto', // 'auto' | 'dark' | 'light'
+      theme: 'auto',
       showFab: true,
-      fabPos: { right: 18, bottom: 90 },
-      autoInterval: 0, // 0为纯手动，>0为每满X楼提醒/自动总结
-      keepFloors: 12,  // 插入楼层隐藏旧楼时默认保留尾部楼层数
+      fabPos: { side: 'right', bottom: 90, docked: false },
+      autoInterval: 0,
       customPrompt: DEFAULT_PROMPT
     };
   }
 
   // =========================================================================
-  // 三、数据持久化层（严守第 05/08 章双写落盘与骤减保护铁律）
+  // 三、数据持久化层（自动兼容 v1.0.0 旧数据无缝升级至多人卡 profiles）
   // =========================================================================
   let globalSettings = createDefaultSettings();
   let currentTab = 'mind';
-  let previewDraft = null; // 暂存AI刚生成待确认的预览档
+  let previewDraft = null;
+  let isFullscreen = false;
 
   function loadGlobalSettings() {
     try {
@@ -137,6 +153,9 @@
       const rawLocal = localStorage.getItem(STORAGE_GLOBAL_KEY);
       const parsedLocal = rawLocal ? JSON.parse(rawLocal) : null;
       globalSettings = Object.assign(createDefaultSettings(), extStore || {}, parsedLocal || {});
+      if (!globalSettings.fabPos || typeof globalSettings.fabPos !== 'object') {
+        globalSettings.fabPos = { side: 'right', bottom: 90, docked: false };
+      }
     } catch (e) {
       console.warn('[HeartEcho] loadGlobalSettings error:', e);
     }
@@ -147,9 +166,7 @@
       localStorage.setItem(STORAGE_GLOBAL_KEY, JSON.stringify(globalSettings));
       const ctx = getCtx();
       const extRoot = ctx.extensionSettings || window.extension_settings;
-      if (extRoot) {
-        extRoot[PLUGIN_ID] = globalSettings;
-      }
+      if (extRoot) extRoot[PLUGIN_ID] = globalSettings;
       ctx.saveSettingsDebounced?.();
       window.saveSettingsDebounced?.();
     } catch (e) {
@@ -159,17 +176,36 @@
 
   function getChatData() {
     const ctx = getCtx();
+    const defaultName = ctx.name2 || '主控角色';
     const meta = ctx.chatMetadata || window.chat_metadata;
-    if (!meta) return createEmptyChatData();
+    if (!meta) return createEmptyChatData(defaultName);
     meta.extensions = meta.extensions || {};
     if (!meta.extensions[PLUGIN_ID]) {
-      meta.extensions[PLUGIN_ID] = createEmptyChatData();
+      meta.extensions[PLUGIN_ID] = createEmptyChatData(defaultName);
     }
     const d = meta.extensions[PLUGIN_ID];
-    // 补齐可能缺失的字段
-    const base = createEmptyChatData();
+    const base = createEmptyChatData(defaultName);
+
+    // 兼容 v1.0.0 单人 charMind 无损迁移至 profiles 数组
+    if (!Array.isArray(d.profiles) || !d.profiles.length) {
+      const migrated = createSingleProfile(defaultName);
+      if (d.charMind) {
+        migrated.selfBase = d.charMind.selfBase || '';
+        migrated.surfaceView = d.charMind.surfaceView || '';
+        migrated.subconscious = d.charMind.subconscious || '';
+        migrated.innerVoice = d.charMind.innerVoice || '';
+        migrated.anchors = d.charMind.anchors || '';
+        migrated.locked = !!(d.locks && d.locks.charMind);
+      }
+      d.profiles = [migrated];
+    }
+
+    if (typeof d.activeCharIdx !== 'number' || d.activeCharIdx < 0 || d.activeCharIdx >= d.profiles.length) {
+      d.activeCharIdx = 0;
+    }
+    d.initiativeGear = d.initiativeGear || 1;
+    d.secretGear = d.secretGear || 2;
     d.locks = Object.assign(base.locks, d.locks || {});
-    d.charMind = Object.assign(base.charMind, d.charMind || {});
     d.userNote = Object.assign(base.userNote, d.userNote || {});
     d.secretLedger = Object.assign(base.secretLedger, d.secretLedger || {});
     d.snapshot = Object.assign(base.snapshot, d.snapshot || {});
@@ -178,18 +214,23 @@
     return d;
   }
 
-  // 备份当前档位到最近5档后悔药
+  function getCurrentProfile(d) {
+    return d.profiles[d.activeCharIdx] || d.profiles[0];
+  }
+
   function pushHistorySnapshot(reasonLabel) {
     const d = getChatData();
     const copy = JSON.parse(JSON.stringify({
       time: new Date().toLocaleTimeString(),
-      reason: reasonLabel || '手动/更新前自动备份',
-      charMind: d.charMind,
+      reason: reasonLabel || '操作前自动备份',
+      profiles: d.profiles,
       userNote: d.userNote,
       secretLedger: d.secretLedger,
       acts: d.acts,
       snapshot: d.snapshot,
-      npcs: d.npcs
+      npcs: d.npcs,
+      initiativeGear: d.initiativeGear,
+      secretGear: d.secretGear
     }));
     d.history.unshift(copy);
     if (d.history.length > 5) d.history.length = 5;
@@ -199,9 +240,7 @@
     const ctx = getCtx();
     const d = getChatData();
     d.updatedAt = Date.now();
-    // 同步登记到跨窗口角色总书架
     syncToCharacterShelf(d);
-    // 依序调用全部可用落盘方法（交底文档第08节铁律）
     try { ctx.saveChat?.(); } catch (e) {}
     try { window.saveChatConditional?.(); } catch (e) {}
     try { window.saveChat?.(); } catch (e) {}
@@ -210,7 +249,6 @@
     try { window.insertOrAssignVariables?.({ [PLUGIN_ID]: d }, { type: 'chat' }); } catch (e) {}
   }
 
-  // 跨窗口角色总书架同步（带骤减保护）
   function loadShelf() {
     try {
       const raw = localStorage.getItem(STORAGE_SHELF_KEY);
@@ -223,17 +261,18 @@
   function syncToCharacterShelf(chatData) {
     try {
       const ctx = getCtx();
-      const charName = ctx.name2 || '未知角色';
+      const charName = ctx.name2 || (chatData.profiles?.[0]?.name) || '未知角色';
       const chatId = ctx.chatId || ('chat_' + Date.now());
       const oldShelf = loadShelf();
       const oldCount = Object.keys(oldShelf).length;
+      const firstProf = chatData.profiles?.[0] || {};
 
       oldShelf[charName] = oldShelf[charName] || {};
       oldShelf[charName][chatId] = {
         chatId,
         charName,
         updatedAt: new Date().toLocaleString(),
-        innerVoice: chatData.charMind?.innerVoice || '',
+        innerVoice: firstProf.innerVoice || '',
         sceneBridge: chatData.snapshot?.sceneBridge || '',
         actsCount: (chatData.acts || []).length,
         fullText: buildFormattedPromptBlock(chatData, false)
@@ -250,13 +289,20 @@
   }
 
   // =========================================================================
-  // 四、组装投喂文本（含第0楼开场白三明治隔离法 & 四档变速箱）
+  // 四、组装投喂文本（含破 99.99% 关系主动引擎 + 通用伏笔推进器 + 多人卡支持）
   // =========================================================================
-  const GEAR_INSTRUCTIONS = {
-    1: '【暗线档位：1档·潜伏期】当前严禁提及或暗示未揭晓的马甲/过往身份秘密，专注当下剧情推进。',
-    2: '【暗线档位：2档·灵魂重影与恍惚】角色理智上绝不知晓User隐藏身份，但会在具体的眼神、习惯或动作细节上本能地感到熟悉与灵魂重影，产生强烈的情绪失神或拉扯，严禁直接猜出真相。',
-    3: '【暗线档位：3档·违和与暗中试探】角色已察觉细节处的违和感，允许在言行中设局试探或产生动摇怀疑，但尚未拿到决定性铁证。',
-    4: '【暗线档位：4档·真相引爆期】信息差壁垒已打破，允许结合全部过往真相与真实身份展开正面情感爆发与清算。'
+  const INITIATIVE_INSTRUCTIONS = {
+    1: '【关系推进档位：1档·顺其自然】按当前人设与情感张力自然互动，不强行加速关系定性。',
+    2: '【关系推进档位：2档·暗宠与主动关怀】角色必须走出被动对话！主动发起实质生活照顾、筹备贴心礼物/小惊喜、主动邀约或自然提起共同旧事，展现细腻的主动陪伴感。',
+    3: '【关系推进档位：3档·醋意与名分焦灼】严禁角色摆出“来日方长/默认User迟早属于自己”的傲慢松弛感！角色必须对“双方尚无正式名分或害怕失去User”产生明显的患得患失、醋意与占有欲，主动试探并渴求确认唯一关系。',
+    4: '【关系推进档位：4档·捅破窗户纸/冲破99.99%瓶颈令】严禁再维持模糊暧昧或将好感度卡在99%/99.99%！角色必须在本阶段主动打破僵局，筹划并执行正式告白、正名仪式、求婚或彻底交付底牌，将两人关系实质性推入下一阶段！'
+  };
+
+  const SECRET_GEAR_INSTRUCTIONS = {
+    1: '【暗线/伏笔推进器：1档·埋种潜伏期】当前严禁提前挑明或引爆暗线/马甲秘密，仅维持表面日常推进。',
+    2: '【暗线/伏笔推进器：2档·暗中筹备/重影铺垫期】角色理智上未看穿真相（或事件尚在暗中筹备），但在具体细节、眼神或动作习惯上会产生强烈的灵魂重影与情绪恍惚，制造宿命拉扯感，严禁直接挑明结果。',
+    3: '【暗线/伏笔推进器：3档·蓄势待发/违和试探期】暗线或马甲破绽已浮出水面，角色开始频繁产生怀疑并主动设局试探，山雨欲来之势拉满，只差最后临门一脚。',
+    4: '【暗线/伏笔推进器：4档·本回合立即引爆】铺垫已满，请结合下方暗线真相在本阶段正面引爆该伏笔/掉马事件，展开高张力情感清算或剧情转折！'
   };
 
   function buildFormattedPromptBlock(d, forFloorDetails) {
@@ -269,50 +315,58 @@
       lines.push('【系统护栏：若上文存在第0楼开场白，第0楼仅作行文质感与文风参考，其初始时间线已过去；当前真实时空、伤病战力与关系状态严格以本档案为准】');
     }
 
-    // 1. 双生心智与防复读机锁
-    lines.push('### 一、【角色动态心智与认知】');
-    if (d.charMind.selfBase) lines.push('- 性格底色与心境微变：' + d.charMind.selfBase);
-    if (d.charMind.surfaceView) lines.push('- 对User表层认知(仅知信息)：' + d.charMind.surfaceView);
-    if (d.charMind.subconscious) lines.push('- 潜意识态度与身体惯性：' + d.charMind.subconscious);
-    if (d.charMind.innerVoice) lines.push('- 此刻潜台词心声：「' + d.charMind.innerVoice + '」');
-    if (d.charMind.anchors) lines.push('- 核心触动锚点与原话：\n' + d.charMind.anchors);
+    // 1. 在场角色动态心智（支持单人 & 多人卡）
+    const activeProfiles = (d.profiles || []).filter(p => p.present !== false);
+    lines.push('### 一、【在场角色动态心智与认知】');
+    activeProfiles.forEach(p => {
+      lines.push(`#### 角色：${p.name || '主控角色'}`);
+      if (p.selfBase) lines.push('- 当下最新心境与防线微变：' + p.selfBase);
+      if (p.surfaceView) lines.push('- 对User表层认知(仅知信息)：' + p.surfaceView);
+      if (p.subconscious) lines.push('- 潜意识态度与身体惯性：' + p.subconscious);
+      if (p.innerVoice) lines.push('- 此刻潜台词心声：「' + p.innerVoice + '」');
+      if (p.anchors) lines.push('- 过去沉淀的核心触动锚点与原话：\n' + p.anchors);
+    });
 
+    // 关系主动推进引擎指令
+    lines.push('- ' + (INITIATIVE_INSTRUCTIONS[d.initiativeGear] || INITIATIVE_INSTRUCTIONS[1]));
+
+    if (d.actionLock === 'substantive') {
+      lines.push('- 【防口头挡刀复读机铁律】：面对矛盾或追妻赎罪情境，角色必须做出有实质代价的偏执护短或破局行动！严禁站在原地当道德复读机、严禁空喊“冲我来/杀了我/不碰你/一起死”等逃避式口号！');
+    }
+
+    // 2. User 态度备注
     if (d.userNote.attitude || d.userNote.bottomLine) {
       lines.push('### 二、【User立场与设定护栏（角色严禁直接读心看穿，仅从互动细节捉摸）】');
       if (d.userNote.attitude) lines.push('- User当前真实心境张力：' + d.userNote.attitude);
       if (d.userNote.bottomLine) lines.push('- User人设与互动底线：' + d.userNote.bottomLine);
     }
 
-    if (d.actionLock === 'substantive') {
-      lines.push('- 【破局行动铁律】：面对矛盾或追妻赎罪情境，角色必须做出有实质代价的偏执护短或破局行动！严禁站在原地当道德复读机、严禁空喊“冲我来/杀了我/不碰你/一起死”等逃避式口号！');
-    }
-
-    // 2. 暗线变速与防吃书黑名单
-    lines.push('### 三、【信息差暗线与不可逆铁律】');
-    lines.push('- ' + (GEAR_INSTRUCTIONS[d.secretGear] || GEAR_INSTRUCTIONS[2]));
+    // 3. 通用暗线/伏笔推进器与防吃书黑名单
+    lines.push('### 三、【暗线/伏笔推进器与防吃书物理铁律】');
+    lines.push('- ' + (SECRET_GEAR_INSTRUCTIONS[d.secretGear] || SECRET_GEAR_INSTRUCTIONS[2]));
     if (d.secretGear >= 2 && d.secretLedger.truthAndMask) {
-      lines.push('- 导演暗线背景(仅供制造戏剧张力，角色严禁开天眼)：' + d.secretLedger.truthAndMask);
+      lines.push('- 导演暗线/待推进事件底牌(仅供按档位制造张力，未到4档严禁角色开天眼说破)：' + d.secretLedger.truthAndMask);
     }
-    if (d.secretLedger.charClues) lines.push('- 角色当前仅掌握线索：' + d.secretLedger.charClues);
+    if (d.secretLedger.charClues) lines.push('- 当前已铺垫线索与进度：' + d.secretLedger.charClues);
     if (d.secretLedger.hardFacts) {
-      lines.push('- 【防吃书物理/战力钢印(严禁违背或捏造旧伤卖惨)】：' + d.secretLedger.hardFacts);
+      lines.push('- 【不可逆物理/战力/伤病黑名单(严禁违背或乱编旧伤复发卖惨)】：' + d.secretLedger.hardFacts);
     }
 
-    // 3. 分幕卷宗
+    // 4. 分幕卷宗
     const activeActs = (d.acts || []).filter(a => a.summary);
     if (activeActs.length > 0) {
-      lines.push('### 四、【过往分幕因果脉络】');
+      lines.push('### 四、【过往分幕因果卷宗】');
       activeActs.forEach((a, idx) => {
         lines.push(`- [第${idx + 1}幕 · ${a.title || '阶段记录'}]：${a.summary}`);
       });
     }
 
-    // 4. 切口快照与人物
+    // 5. 切口快照与人物
     lines.push('### 五、【当时情况·切口现场快照（无缝衔接核心）】');
     if (d.snapshot.sceneBridge) lines.push('- 切口场景与情绪余温：' + d.snapshot.sceneBridge);
     if (d.snapshot.attireAndBody) lines.push('- 当下衣着与身体微状态：' + d.snapshot.attireAndBody);
     if (d.snapshot.itemsAndTodos) lines.push('- 关键道具与未完约定：' + d.snapshot.itemsAndTodos);
-    if (d.npcs) lines.push('- 登场人物名册：' + d.npcs);
+    if (d.npcs) lines.push('- 重要配角/NPC名册：' + d.npcs);
 
     if (forFloorDetails) {
       lines.push('</details>');
@@ -323,7 +377,6 @@
     return forFloorDetails ? lines.join('<br>\n') : lines.join('\n');
   }
 
-  // 检查当前未隐藏的聊天楼层里是否已经插过总结块（防双倍烧 Token）
   function hasVisibleFloorSummary(chatArr) {
     if (!Array.isArray(chatArr)) return false;
     for (let i = chatArr.length - 1; i >= 0; i--) {
@@ -336,7 +389,7 @@
   }
 
   // =========================================================================
-  // 五、独立干净的 LLM 请求（严守第 06/07 章 fetch 直连与 /v1 兼容铁律）
+  // 五、独立干净的 LLM 请求与楼层切片提取
   // =========================================================================
   async function callCleanLLM(systemPrompt, userContent) {
     const base = String(globalSettings.baseUrl || '').trim().replace(/\/+$/, '');
@@ -344,7 +397,7 @@
     const model = String(globalSettings.model || '').trim();
 
     if (!base || !key || !model) {
-      setStatus('请先在【设置】页签配置 API 地址、密钥与模型名', true);
+      setStatus('请先在【设置与API】页签配置 API 地址、密钥与模型名', true);
       return null;
     }
 
@@ -365,7 +418,7 @@
           body: JSON.stringify({
             model: model,
             temperature: 0.75,
-            max_tokens: 1800,
+            max_tokens: 2000,
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent }
@@ -387,15 +440,14 @@
     return null;
   }
 
-  // 根据楼层跨度自动生成快慢双轨补充指令
-  function getSpanRuleText(floorCount, extraNote) {
+  function getSpanRuleText(floorCount, extraNote, presentNames) {
     const modeHint = floorCount <= 35
-      ? '【本次为短跨度高频更新（共 ' + floorCount + ' 楼）】：请开启「微调防飘模式」——日常寒暄一笔带过，若无重大冲突请保持角色核心认知稳定，重点精确更新「切口现场快照、衣着微状态与潜台词心声」。'
-      : '【本次为长跨度阶段大总结（共 ' + floorCount + ' 楼）】：请开启「长线沉淀模式」——大刀阔斧筛除过渡废话，提炼关键因果转折与潜意识里的关系破冰成长，同时必须精准锁定最后几楼的「切口现场与衣着道具最终状态」以防隐藏前文后断档。';
-    return modeHint + (extraNote ? '\n【用户额外润色叮嘱（最高优先级）】：' + extraNote : '');
+      ? `【本次为短跨度高频更新（共 ${floorCount} 楼）】：请开启「微调防飘模式」——日常寒暄一笔带过，保持角色核心认知稳定，重点精确更新「切口现场快照、衣着微状态与潜台词心声」。`
+      : `【本次为长跨度阶段大总结（共 ${floorCount} 楼）】：请开启「长线沉淀模式」——大刀阔斧筛除过渡废话，提炼关键因果转折与关系成长，同时必须精准锁定最后几楼的「切口现场与衣着道具最终状态」以防隐藏前文后断档。`;
+    const namesHint = `\n【当前在场主要角色名单（请在 characterMinds 中严格按这些名字归档）】：${presentNames.join('、')}`;
+    return modeHint + namesHint + (extraNote ? '\n【用户额外润色叮嘱（最高优先级）】：' + extraNote : '');
   }
 
-  // 提取指定范围楼层文本（支持跳过如 20-25 的小剧场楼层）
   function extractChatSliceText(startFloor, endFloor, skipSpec) {
     const ctx = getCtx();
     const chat = ctx.chat || [];
@@ -404,7 +456,6 @@
     const s = Math.max(0, parseInt(startFloor, 10) || 0);
     const e = Math.min(chat.length - 1, isNaN(parseInt(endFloor, 10)) ? chat.length - 1 : parseInt(endFloor, 10));
 
-    // 解析要跳过的楼层集合（如 "15, 20-23"）
     const skipSet = new Set();
     if (skipSpec) {
       String(skipSpec).split(/[,，\s]+/).forEach(part => {
@@ -433,7 +484,6 @@
     return { text: picked.join('\n\n'), count: picked.length };
   }
 
-  // 解析 AI 返回的 JSON
   function parseAiJson(rawText) {
     if (!rawText) return null;
     try {
@@ -451,7 +501,7 @@
   }
 
   // =========================================================================
-  // 六、UI 挂载与渲染（严守第 04/07/10/11 章 DOM 与移动端交互铁律）
+  // 六、UI 挂载与渲染（含贴边悬浮球、全屏切换、多人子页签、自由隐藏楼层）
   // =========================================================================
   function mountUI() {
     if (document.getElementById('he-root')) return;
@@ -459,8 +509,8 @@
     const root = document.createElement('div');
     root.id = 'he-root';
     root.innerHTML = `
-      <!-- 可拖拽悬浮球 -->
-      <div id="he-fab" title="打开心语回响">${ICONS.echo}</div>
+      <!-- 支持左右贴边半隐藏的可拖拽悬浮球 -->
+      <div id="he-fab" title="打开心语回响（拖至左右边缘可半隐藏）">${ICONS.echo}</div>
 
       <!-- 主模态面板 -->
       <div id="he-backdrop">
@@ -470,46 +520,61 @@
             <div class="he-title-wrap">
               ${ICONS.echo}
               <span>心语回响 · HeartEcho</span>
-              <span class="he-badge" id="he-char-badge">当前角色</span>
+              <span class="he-badge" id="he-char-badge">当前对话</span>
             </div>
             <div class="he-header-actions">
               <button class="he-btn" data-act="switch-tab" data-tab="shelf" title="跨窗口角色记忆总书架">${ICONS.shelf} 角色书架</button>
               <button class="he-btn" data-act="undo-history" title="一键退回上一档历史快照">${ICONS.undo} 退回上一档</button>
               <button class="he-btn" data-act="cycle-theme" id="he-theme-btn">主题: 跟随</button>
+              <button class="he-btn" data-act="toggle-fullscreen" id="he-fs-btn" title="切换全屏展开/窗口还原">${ICONS.max} 全屏</button>
               <button class="he-btn" data-act="close-panel" title="关闭面板">${ICONS.close}</button>
             </div>
           </div>
 
-          <!-- 五大核心抽屉 + 书架 + 设置页签 -->
+          <!-- 页签栏 -->
           <div class="he-tabs">
             <button class="he-tab he-active" data-act="switch-tab" data-tab="mind">① 双生心智</button>
             <button class="he-tab" data-act="switch-tab" data-tab="secret">② 暗线与铁律</button>
             <button class="he-tab" data-act="switch-tab" data-tab="acts">③ 分幕卷宗</button>
             <button class="he-tab" data-act="switch-tab" data-tab="snapshot">④ 切口与行囊</button>
-            <button class="he-tab" data-act="switch-tab" data-tab="npcs">⑤ 人物与总结</button>
+            <button class="he-tab" data-act="switch-tab" data-tab="npcs">⑤ 总结与藏楼</button>
             <button class="he-tab" data-act="switch-tab" data-tab="settings">设置与API</button>
           </div>
 
           <!-- 主体内容区 -->
           <div class="he-body" id="he-body">
-            <!-- ① 双生心智 -->
+            <!-- ① 双生心智（含多人卡子标签 + 关系主动推进引擎） -->
             <div class="he-pane he-active" data-pane="mind">
+              <!-- 多人卡角色子标签切换栏 -->
+              <div class="he-subtabs" id="he-char-subtabs"></div>
+
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>角色动态心智补丁（性格守恒下的细腻微变）</span>
-                  <button class="he-btn" data-act="toggle-lock" data-lock="charMind" id="he-lock-charMind"></button>
+                  <div class="he-row">
+                    <span>当前选中角色：</span>
+                    <input class="he-input" id="he-f-profName" style="width:130px; padding:3px 7px;" placeholder="角色名字" />
+                    <label class="he-row" style="font-size:12px; color:var(--he-text); cursor:pointer;">
+                      <input type="checkbox" id="he-f-profPresent" />
+                      <span>当前在场（勾上才参与总结与投喂）</span>
+                    </label>
+                  </div>
+                  <div class="he-row">
+                    <button class="he-btn" data-act="toggle-prof-lock" id="he-lock-profBtn"></button>
+                    <button class="he-btn he-btn-danger" data-act="delete-prof" title="删除该角色子卡">${ICONS.trash}</button>
+                  </div>
                 </div>
+
                 <div>
                   <div class="he-label"><span>此刻潜台词心声（第一人称直白心声）</span></div>
                   <input class="he-input" id="he-f-innerVoice" placeholder="例：嘴上嫌她麻烦，视线却总忍不住往她受伤的手腕上飘……" />
                 </div>
                 <div class="he-grid-2">
                   <div>
-                    <div class="he-label"><span>性格底色与心境微变</span></div>
-                    <textarea class="he-textarea" id="he-f-selfBase" placeholder="经历本阶段后，角色执念或心理防线的细微松动"></textarea>
+                    <div class="he-label"><span>当下最新心境与防线微变（动态覆盖，旧历程沉淀至下方锚点）</span></div>
+                    <textarea class="he-textarea" id="he-f-selfBase" placeholder="只记角色当前这一刻的自我处境、执念或心理防线松动状态"></textarea>
                   </div>
                   <div>
-                    <div class="he-label"><span>对 User 表层认知（仅角色已知）</span></div>
+                    <div class="he-label"><span>对 User 表层认知（仅角色目前已知信息）</span></div>
                     <textarea class="he-textarea" id="he-f-surfaceView" placeholder="角色目前以为User是谁、存有哪些误判（严禁混入未掉马真相）"></textarea>
                   </div>
                 </div>
@@ -518,19 +583,32 @@
                   <textarea class="he-textarea" id="he-f-subconscious" placeholder="理智上的克制或割裂 vs 行动上的下意识偏袒、护短或透过易容看到的灵魂重影"></textarea>
                 </div>
                 <div>
-                  <div class="he-label"><span>核心触动锚点与关键原话（最多4条，新旧择优保留）</span></div>
+                  <div class="he-label"><span>过去沉淀的核心触动锚点与关键原话（最多留4条最戳心瞬间+后遗症）</span></div>
                   <textarea class="he-textarea" id="he-f-anchors" placeholder="[雨夜伞下] 原话：「……」 -> 此后每逢下雨或见User受寒便暗中心软"></textarea>
+                </div>
+              </div>
+
+              <!-- 关系主动推进引擎（专治万年被动暧昧 & 卡 99.99% 好感度） -->
+              <div class="he-card">
+                <div class="he-card-head">
+                  <span>关系主动推进引擎（专治角色不主动送礼、默认暧昧、好感卡死 99.99%）</span>
+                </div>
+                <div class="he-gear-group" id="he-init-gear-group">
+                  <button class="he-gear-btn" data-act="set-init-gear" data-gear="1">① 顺其自然<br><small>正常拉扯不强推</small></button>
+                  <button class="he-gear-btn" data-act="set-init-gear" data-gear="2">② 暗宠主动事件<br><small>主动送礼/关怀/提旧事</small></button>
+                  <button class="he-gear-btn" data-act="set-init-gear" data-gear="3">③ 醋意与名分焦灼<br><small>禁松弛感/渴求唯一名分</small></button>
+                  <button class="he-gear-btn" data-act="set-init-gear" data-gear="4">④ 捅破窗户纸(破100%)<br><small>禁卡99.99%/主动告白正名</small></button>
                 </div>
               </div>
 
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>User 态度备注与防复读机破局锁（自带防读心隔离）</span>
+                  <span>User 态度备注与防口头复读机开关（自带防读心隔离）</span>
                   <button class="he-btn" data-act="toggle-lock" data-lock="userNote" id="he-lock-userNote"></button>
                 </div>
                 <div class="he-grid-2">
                   <div>
-                    <div class="he-label"><span>User 对角色真实情感张力（防 -100 死板解读）</span></div>
+                    <div class="he-label"><span>User 对角色真实情感张力（防 -100 被死板解读成毫无波澜）</span></div>
                     <textarea class="he-textarea" id="he-f-userAttitude" placeholder="例：表面恨入骨髓拒不原谅，实则因旧情未绝而剧烈怨恸（严禁角色直接读心看穿）"></textarea>
                   </div>
                   <div>
@@ -539,35 +617,36 @@
                   </div>
                 </div>
                 <div class="he-row" style="justify-content: space-between; margin-top: 4px;">
-                  <span class="he-label">困境/火葬场破局行动锁（专治口头挡刀“冲我来/一起死”复读机）：</span>
+                  <span class="he-label">防口头挡刀复读机开关（治火葬场只会喊“杀了我/冲我来/一起死”）：</span>
                   <select class="he-select" id="he-f-actionLock" style="width: auto;">
-                    <option value="normal">常规自然推演</option>
-                    <option value="substantive">强力破局锁（强制实质割肉行动，禁道德说教与逃避口号）</option>
+                    <option value="normal">常规模式（不额外干预）</option>
+                    <option value="substantive">开启强制实质行动（禁口头挡刀说教，必须做出实质割肉行动）</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <!-- ② 暗线与铁律 -->
+            <!-- ② 暗线与铁律（升级为通用伏笔/掉马四档推进器） -->
             <div class="he-pane" data-pane="secret">
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>掉马与伏笔四档变速箱（点选切换当前戏剧张力）</span>
+                  <span>通用伏笔 / 掉马 / 筹备事件四档推进器（控铺垫与引爆速度）</span>
                 </div>
+                <div class="he-hint">无论是掉马甲、旧忆重提、还是你想让角色暗中铺垫某件事（如筹备生辰宴、酝酿危机），都可写在下方并用四档控制节奏：</div>
                 <div class="he-gear-group" id="he-gear-group">
-                  <button class="he-gear-btn" data-act="set-gear" data-gear="1">① 潜伏档<br><small>纯日常不提旧事</small></button>
-                  <button class="he-gear-btn" data-act="set-gear" data-gear="2">② 重影恍惚档<br><small>本能吸引不破马甲</small></button>
-                  <button class="he-gear-btn" data-act="set-gear" data-gear="3">③ 违和试探档<br><small>察觉破绽暗中试探</small></button>
-                  <button class="he-gear-btn" data-act="set-gear" data-gear="4">④ 掉马引爆档<br><small>彻底揭穿正面清算</small></button>
+                  <button class="he-gear-btn" data-act="set-gear" data-gear="1">① 埋种潜伏期<br><small>完全保密不提</small></button>
+                  <button class="he-gear-btn" data-act="set-gear" data-gear="2">② 重影/暗中铺垫<br><small>制造恍惚与氛围暗示</small></button>
+                  <button class="he-gear-btn" data-act="set-gear" data-gear="3">③ 违和/蓄势待发<br><small>察觉破绽频繁试探</small></button>
+                  <button class="he-gear-btn" data-act="set-gear" data-gear="4">④ 本回合立即引爆<br><small>彻底揭穿/正面爆发</small></button>
                 </div>
                 <div class="he-grid-2">
                   <div>
-                    <div class="he-label"><span>客观真相 / 马甲 / 性别伪装底牌</span></div>
-                    <textarea class="he-textarea" id="he-f-truthAndMask" placeholder="记录上帝视角真相（1档完全不发给AI，2-3档加防开天眼护栏发送）"></textarea>
+                    <div class="he-label"><span>客观真相 / 马甲底牌 / 想让他铺垫引爆的事件</span></div>
+                    <textarea class="he-textarea" id="he-f-truthAndMask" placeholder="记录上帝视角真相或待推进事件（1档不发给AI，2-3档只做铺垫严禁挑明，4档立即引爆）"></textarea>
                   </div>
                   <div>
-                    <div class="he-label"><span>角色当前已掌握线索与怀疑方向</span></div>
-                    <textarea class="he-textarea" id="he-f-charClues" placeholder="角色目前仅凭实力查到的真实线索"></textarea>
+                    <div class="he-label"><span>角色目前已掌握线索 / 当前铺垫进度</span></div>
+                    <textarea class="he-textarea" id="he-f-charClues" placeholder="角色目前仅凭实力查到的真实线索或事件已铺垫到的程度"></textarea>
                   </div>
                 </div>
               </div>
@@ -585,12 +664,13 @@
             <div class="he-pane" data-pane="acts">
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>分幕剧情卷宗库（支持自由勾选合并，初见名场面可保留不乱炖）</span>
+                  <span>分幕剧情卷宗库（每次总结自动新增一幕，可自由勾选几幕合并）</span>
                   <div class="he-row">
-                    <button class="he-btn" data-act="add-act">${ICONS.plus} 新增空白幕</button>
+                    <button class="he-btn" data-act="add-act" title="不调AI，纯手动加一个空白框自己写">${ICONS.plus} 手动添一幕</button>
                     <button class="he-btn he-btn-primary" data-act="merge-selected-acts">${ICONS.spark} 合并勾选幕</button>
                   </div>
                 </div>
+                <div class="he-hint">说明：每次执行 AI 总结并确认应用后，会自动在这里生成最新一幕。你想保留「第1幕初见」不动、只把「第2、3幕」浓缩合并时，只需勾选第2、3幕再点右上角「合并勾选幕」即可。</div>
                 <div id="he-acts-list" style="display:flex; flex-direction:column; gap:8px;"></div>
               </div>
             </div>
@@ -614,18 +694,14 @@
               </div>
             </div>
 
-            <!-- ⑤ 人物名册与总结控制台 -->
+            <!-- ⑤ 总结控制台、手动自由藏楼与人物名册 -->
             <div class="he-pane" data-pane="npcs">
+              <!-- AI 总结范围与叮嘱 -->
               <div class="he-card">
-                <div class="he-card-head"><span>重要登场人物与 NPC 名册（防同人异名裂变）</span></div>
-                <textarea class="he-textarea" id="he-f-npcs" placeholder="各关键人物身份、当前生死/立场与一句话最新关系"></textarea>
-              </div>
-
-              <div class="he-card">
-                <div class="he-card-head"><span>执行总结与楼层范围控制（支持跳过小剧场）</span></div>
+                <div class="he-card-head"><span>AI 总结范围与润色叮嘱（不锁定的模块将一并提炼，并自动生成新一幕卷宗）</span></div>
                 <div class="he-grid-2">
                   <div>
-                    <div class="he-label"><span>起始楼层 ~ 结束楼层（留空默认总结全篇）</span></div>
+                    <div class="he-label"><span>总结起始楼 ~ 结束楼（留空默认总结全篇可见楼层）</span></div>
                     <div class="he-row">
                       <input class="he-input" id="he-sum-start" placeholder="起始楼(如 0)" style="width:48%" />
                       <input class="he-input" id="he-sum-end" placeholder="结束楼(默认最新)" style="width:48%" />
@@ -638,22 +714,36 @@
                 </div>
                 <div>
                   <div class="he-label"><span>本次总结额外润色叮嘱（告诉 AI 重点保留什么情感或细节）</span></div>
-                  <input class="he-input" id="he-sum-note" placeholder="例：重点刻画他发现我受伤后的愧疚，不要改写第一幕初见锚点" />
+                  <input class="he-input" id="he-sum-note" placeholder="例：重点刻画他发现我受伤后的愧疚，原样保留他在洞底说的那句话" />
                 </div>
-                <div class="he-row" style="justify-content: space-between; margin-top:4px;">
-                  <button class="he-btn he-btn-primary" data-act="run-summary">${ICONS.spark} 立即提炼总结（生成后可预览修改）</button>
-                  <div class="he-row">
-                    <button class="he-btn" data-act="insert-to-floor">${ICONS.send} 美化插入当前楼层并可选藏旧楼</button>
-                    <button class="he-btn" data-act="export-worldbook">复制世界书格式</button>
-                  </div>
-                </div>
-                <div id="he-preview-box" style="display:none; margin-top:8px; border-top:1px dashed var(--he-border); padding-top:8px;">
-                  <div class="he-card-head"><span>AI 提炼预览（确认无误后点击「应用存档」，绝不盲目覆盖）</span></div>
+                <div id="he-preview-box" style="display:none; margin-top:6px; border-top:1px dashed var(--he-border); padding-top:8px;">
+                  <div class="he-card-head"><span>AI 提炼预览已填入各页签！（检查满意后点下方按钮正式生效）</span></div>
                   <div class="he-row" style="margin-top:6px;">
-                    <button class="he-btn he-btn-primary" data-act="confirm-preview">确认应用并自动备份旧档</button>
+                    <button class="he-btn he-btn-primary" data-act="confirm-preview">确认应用（若选了插入楼层模式将自动发进聊天楼层）</button>
                     <button class="he-btn he-btn-danger" data-act="cancel-preview">放弃本次生成</button>
                   </div>
                 </div>
+              </div>
+
+              <!-- 玩家自由控制隐藏/恢复楼层工具 -->
+              <div class="he-card">
+                <div class="he-card-head"><span>自由隐藏 / 恢复聊天楼层工具（想藏哪几楼自己填，留第0楼可保开场白文风）</span></div>
+                <div class="he-row">
+                  <span class="he-label">从第</span>
+                  <input class="he-input" id="he-hide-start" value="1" style="width:76px;" placeholder="1" />
+                  <span class="he-label">楼 到 第</span>
+                  <input class="he-input" id="he-hide-end" style="width:86px;" placeholder="如 45" />
+                  <span class="he-label">楼：</span>
+                  <button class="he-btn he-btn-primary" data-act="hide-floors">${ICONS.eyeOff} 隐藏指定楼层</button>
+                  <button class="he-btn" data-act="unhide-floors">${ICONS.eye} 恢复显示指定楼层</button>
+                </div>
+                <div class="he-hint" id="he-floor-count-hint">提示：第 0 楼通常是角色卡开场白，从第 1 楼开始隐藏即可完美保留开场白文风。</div>
+              </div>
+
+              <!-- 重要人物名册 -->
+              <div class="he-card">
+                <div class="he-card-head"><span>重要配角与 NPC 名册（防同人异名裂变）</span></div>
+                <textarea class="he-textarea" id="he-f-npcs" placeholder="各关键配角身份、当前生死/立场与一句话最新印象"></textarea>
               </div>
             </div>
 
@@ -688,16 +778,10 @@
               </div>
 
               <div class="he-card">
-                <div class="he-card-head"><span>自动化与隐藏楼层偏好</span></div>
-                <div class="he-grid-2">
-                  <div>
-                    <div class="he-label"><span>定时自动提醒/总结间隔楼层（填 0 为纯手动）</span></div>
-                    <input class="he-input" type="number" id="he-set-autoInterval" placeholder="0" />
-                  </div>
-                  <div>
-                    <div class="he-label"><span>插入楼层隐藏旧楼时默认保留尾部楼层数</span></div>
-                    <input class="he-input" type="number" id="he-set-keepFloors" placeholder="12" />
-                  </div>
+                <div class="he-card-head"><span>自动化与总结系统提示词</span></div>
+                <div>
+                  <div class="he-label"><span>定时自动提醒间隔楼层（填 0 为纯手动）</span></div>
+                  <input class="he-input" type="number" id="he-set-autoInterval" placeholder="0" style="max-width:200px;" />
                 </div>
                 <div>
                   <div class="he-label">
@@ -710,19 +794,22 @@
             </div>
           </div>
 
-          <!-- 底栏 -->
+          <!-- 全局底栏（任何页签均可一键提炼总结、插入楼层、保存） -->
           <div class="he-footer">
             <div class="he-row">
               <span class="he-label">投喂模式：</span>
               <select class="he-select" id="he-f-injectMode" style="width:auto;">
-                <option value="silent">后台静默注入（保第0楼文风 + 防穿帮）</option>
-                <option value="floor">插入聊天楼层模式（含防重复扣费锁）</option>
-                <option value="none">纯记忆仓库（只存不喂给 AI）</option>
+                <option value="silent">后台静默喂给AI（不占聊天楼层）</option>
+                <option value="floor">插入聊天楼层模式（确认总结时自动发一楼）</option>
+                <option value="none">纯记忆仓库（只存不喂给AI）</option>
               </select>
             </div>
-            <div class="he-status-bar" id="he-status-text">就绪 · 修改后点击右侧保存即可落盘</div>
+            <div class="he-status-bar" id="he-status-text">就绪 · 可随时点右侧提炼总结或保存</div>
             <div class="he-row">
-              <button class="he-btn he-btn-primary" data-act="save-all">保存当前改动</button>
+              <button class="he-btn he-btn-primary" data-act="run-summary">${ICONS.spark} 提炼总结</button>
+              <button class="he-btn" data-act="insert-to-floor" title="立即把当前记忆排版作为一楼发进聊天框">${ICONS.send} 发进楼层</button>
+              <button class="he-btn" data-act="export-worldbook" title="复制为世界书文本">复制世界书</button>
+              <button class="he-btn he-btn-primary" data-act="save-all">保存改动</button>
             </div>
           </div>
         </div>
@@ -735,7 +822,6 @@
     mountExtensionMenuEntries();
   }
 
-  // 注入魔法棒菜单与酒馆扩展管理页（满足 A+B 三处入口需求）
   function mountExtensionMenuEntries() {
     try {
       const extMenu = document.getElementById('extensionsMenu');
@@ -769,7 +855,7 @@
         extSettings.appendChild(box);
         document.getElementById('he-ext-open-btn')?.addEventListener('click', () => openPanel());
         document.getElementById('he-ext-reset-fab')?.addEventListener('click', () => {
-          globalSettings.fabPos = { right: 18, bottom: 90 };
+          globalSettings.fabPos = { side: 'right', right: 18, bottom: 90, docked: false };
           globalSettings.showFab = true;
           saveGlobalSettings();
           applyFabPosition();
@@ -808,11 +894,26 @@
       fab.classList.add('he-hidden');
       return;
     }
-    fab.classList.remove('he-hidden');
-    fab.style.left = 'auto';
+    fab.classList.remove('he-hidden', 'he-dock-left', 'he-dock-right');
+    const pos = globalSettings.fabPos || { side: 'right', bottom: 90, docked: false };
     fab.style.top = 'auto';
-    fab.style.right = (globalSettings.fabPos?.right ?? 18) + 'px';
-    fab.style.bottom = (globalSettings.fabPos?.bottom ?? 90) + 'px';
+    fab.style.bottom = (pos.bottom ?? 90) + 'px';
+
+    if (pos.docked) {
+      if (pos.side === 'left') {
+        fab.classList.add('he-dock-left');
+      } else {
+        fab.classList.add('he-dock-right');
+      }
+    } else {
+      if (pos.side === 'left') {
+        fab.style.left = (pos.left ?? 18) + 'px';
+        fab.style.right = 'auto';
+      } else {
+        fab.style.right = (pos.right ?? 18) + 'px';
+        fab.style.left = 'auto';
+      }
+    }
   }
 
   function setStatus(msg, isWarn) {
@@ -831,23 +932,60 @@
     document.getElementById('he-backdrop')?.classList.remove('he-open');
   }
 
-  // 把当前聊天数据渲染到表单
+  function toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+    const bd = document.getElementById('he-backdrop');
+    const pn = document.getElementById('he-panel');
+    const btn = document.getElementById('he-fs-btn');
+    if (bd) bd.classList.toggle('he-fullscreen', isFullscreen);
+    if (pn) pn.classList.toggle('he-fullscreen', isFullscreen);
+    if (btn) btn.innerHTML = isFullscreen ? `${ICONS.min} 还原` : `${ICONS.max} 全屏`;
+  }
+
+  // 渲染面板所有字段
   function renderPanelFromData() {
     const ctx = getCtx();
     const d = getChatData();
+    const prof = getCurrentProfile(d);
+    const totalFloors = (ctx.chat || []).length;
+
     const charBadge = document.getElementById('he-char-badge');
-    if (charBadge) charBadge.textContent = ctx.name2 || '当前对话';
+    if (charBadge) charBadge.textContent = `${ctx.name2 || '当前对话'} (共${totalFloors}楼)`;
+
+    const floorHint = document.getElementById('he-floor-count-hint');
+    if (floorHint) {
+      const suggestHideEnd = Math.max(1, totalFloors - 12);
+      floorHint.textContent = `当前聊天共 ${totalFloors} 楼（0 ~ ${ Math.max(0, totalFloors - 1) } 楼）。保留第 0 楼开场白并隐藏 1 ~ ${suggestHideEnd} 楼即可无缝接戏。`;
+      const hideEndInput = document.getElementById('he-hide-end');
+      if (hideEndInput && !hideEndInput.value && totalFloors > 12) {
+        hideEndInput.value = String(suggestHideEnd);
+      }
+    }
+
+    // 渲染多人卡角色子标签
+    renderCharSubtabs(d);
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.value = val ?? '';
     };
 
-    setVal('he-f-innerVoice', d.charMind.innerVoice);
-    setVal('he-f-selfBase', d.charMind.selfBase);
-    setVal('he-f-surfaceView', d.charMind.surfaceView);
-    setVal('he-f-subconscious', d.charMind.subconscious);
-    setVal('he-f-anchors', d.charMind.anchors);
+    // 当前选中角色的心智字段
+    setVal('he-f-profName', prof.name);
+    const presChk = document.getElementById('he-f-profPresent');
+    if (presChk) presChk.checked = prof.present !== false;
+
+    const profLockBtn = document.getElementById('he-lock-profBtn');
+    if (profLockBtn) {
+      profLockBtn.innerHTML = prof.locked ? `${ICONS.lock} 已锁死防改` : `${ICONS.unlock} 随总结更新`;
+      profLockBtn.classList.toggle('he-btn-primary', !!prof.locked);
+    }
+
+    setVal('he-f-innerVoice', prof.innerVoice);
+    setVal('he-f-selfBase', prof.selfBase);
+    setVal('he-f-surfaceView', prof.surfaceView);
+    setVal('he-f-subconscious', prof.subconscious);
+    setVal('he-f-anchors', prof.anchors);
 
     setVal('he-f-userAttitude', d.userNote.attitude);
     setVal('he-f-userBottomLine', d.userNote.bottomLine);
@@ -863,16 +1001,14 @@
     setVal('he-f-npcs', d.npcs);
     setVal('he-f-injectMode', d.injectMode || 'silent');
 
-    // 渲染设置项
+    // 设置项
     setVal('he-set-baseUrl', globalSettings.baseUrl);
     setVal('he-set-apiKey', globalSettings.apiKey);
     setVal('he-set-model', globalSettings.model);
     setVal('he-set-autoInterval', globalSettings.autoInterval);
-    setVal('he-set-keepFloors', globalSettings.keepFloors);
     setVal('he-set-prompt', globalSettings.customPrompt || DEFAULT_PROMPT);
 
-    // 渲染锁定按钮状态
-    ['charMind', 'userNote', 'hardFacts'].forEach(k => {
+    ['userNote', 'hardFacts'].forEach(k => {
       const btn = document.getElementById('he-lock-' + k);
       if (!btn) return;
       const locked = !!d.locks[k];
@@ -880,7 +1016,13 @@
       btn.classList.toggle('he-btn-primary', locked);
     });
 
-    // 渲染四档变速箱高亮
+    // 渲染关系主动推进引擎四档
+    document.querySelectorAll('#he-init-gear-group .he-gear-btn').forEach(btn => {
+      const g = parseInt(btn.getAttribute('data-gear'), 10);
+      btn.classList.toggle('he-active', g === (d.initiativeGear || 1));
+    });
+
+    // 渲染通用伏笔四档推进器
     document.querySelectorAll('#he-gear-group .he-gear-btn').forEach(btn => {
       const g = parseInt(btn.getAttribute('data-gear'), 10);
       btn.classList.toggle('he-active', g === (d.secretGear || 2));
@@ -890,11 +1032,26 @@
     renderShelfList();
   }
 
+  function renderCharSubtabs(d) {
+    const bar = document.getElementById('he-char-subtabs');
+    if (!bar) return;
+    const pills = d.profiles.map((p, idx) => {
+      const active = idx === d.activeCharIdx ? 'he-active' : '';
+      const statusDot = p.present !== false ? '●' : '○';
+      return `<button class="he-char-pill ${active}" data-act="select-prof" data-idx="${idx}" title="${p.present !== false ? '当前在场' : '暂不在场(封存不注入)'}">${statusDot} ${escapeHtml(p.name || ('角色' + (idx + 1)))}</button>`;
+    }).join('');
+    bar.innerHTML = `
+      <span class="he-label" style="margin:0;">角色档案卡（支持单人/多人卡切换）：</span>
+      ${pills}
+      <button class="he-btn" data-act="add-prof">${ICONS.plus} 添加同场/攻略角色</button>
+    `;
+  }
+
   function renderActsList(d) {
     const wrap = document.getElementById('he-acts-list');
     if (!wrap) return;
     if (!d.acts.length) {
-      wrap.innerHTML = `<div class="he-label">暂无分幕卷宗，可点击上方「新增空白幕」或去第⑤页签执行总结生成。</div>`;
+      wrap.innerHTML = `<div class="he-label">暂无分幕卷宗，可点击底栏「提炼总结」自动生成，或点上方「+ 手动添一幕」手写。</div>`;
       return;
     }
     wrap.innerHTML = d.acts.map((act, idx) => `
@@ -904,7 +1061,7 @@
             <input type="checkbox" class="he-act-check" data-idx="${idx}" ${act.checked ? 'checked' : ''} />
             <span>第 ${idx + 1} 幕</span>
           </label>
-          <input class="he-input he-act-title" data-idx="${idx}" value="${escapeHtml(act.title || '')}" placeholder="本幕标题 / 时间节点" style="flex:1; max-width:320px;" />
+          <input class="he-input he-act-title" data-idx="${idx}" value="${escapeHtml(act.title || '')}" placeholder="本幕标题 / 时间节点" style="flex:1; max-width:340px;" />
           <button class="he-btn he-btn-danger" data-act="delete-act" data-idx="${idx}">${ICONS.trash}</button>
         </div>
         <textarea class="he-textarea he-act-summary" data-idx="${idx}" placeholder="本幕核心因果脉络...">${escapeHtml(act.summary || '')}</textarea>
@@ -950,13 +1107,19 @@
 
   function collectFormToData() {
     const d = getChatData();
+    const prof = getCurrentProfile(d);
     const val = id => document.getElementById(id)?.value ?? '';
 
-    d.charMind.innerVoice = val('he-f-innerVoice');
-    d.charMind.selfBase = val('he-f-selfBase');
-    d.charMind.surfaceView = val('he-f-surfaceView');
-    d.charMind.subconscious = val('he-f-subconscious');
-    d.charMind.anchors = val('he-f-anchors');
+    if (prof) {
+      prof.name = val('he-f-profName').trim() || '主控角色';
+      const presEl = document.getElementById('he-f-profPresent');
+      if (presEl) prof.present = !!presEl.checked;
+      prof.innerVoice = val('he-f-innerVoice');
+      prof.selfBase = val('he-f-selfBase');
+      prof.surfaceView = val('he-f-surfaceView');
+      prof.subconscious = val('he-f-subconscious');
+      prof.anchors = val('he-f-anchors');
+    }
 
     d.userNote.attitude = val('he-f-userAttitude');
     d.userNote.bottomLine = val('he-f-userBottomLine');
@@ -972,7 +1135,6 @@
     d.npcs = val('he-f-npcs');
     d.injectMode = val('he-f-injectMode') || 'silent';
 
-    // 收集分幕列表
     document.querySelectorAll('#he-acts-list [data-act-index]').forEach(card => {
       const idx = parseInt(card.getAttribute('data-act-index'), 10);
       if (!d.acts[idx]) return;
@@ -984,12 +1146,10 @@
       if (chkEl) d.acts[idx].checked = chkEl.checked;
     });
 
-    // 收集全局设置
     globalSettings.baseUrl = val('he-set-baseUrl');
     globalSettings.apiKey = val('he-set-apiKey');
     globalSettings.model = val('he-set-model');
     globalSettings.autoInterval = parseInt(val('he-set-autoInterval'), 10) || 0;
-    globalSettings.keepFloors = parseInt(val('he-set-keepFloors'), 10) || 12;
     globalSettings.customPrompt = val('he-set-prompt') || DEFAULT_PROMPT;
   }
 
@@ -1002,13 +1162,13 @@
   }
 
   // =========================================================================
-  // 七、事件委托、安卓中线防遮挡、拖拽与核心业务动作
+  // 七、事件委托、贴边吸附悬浮球、自由隐藏楼层与核心业务动作
   // =========================================================================
   function bindEvents() {
     const root = document.getElementById('he-root');
     if (!root) return;
 
-    // 1. 悬浮球拖拽 vs 点击（>6px 判定拖拽，严守第 07/11 章铁律）
+    // 1. 悬浮球拖拽 + 左右边缘自动贴边半隐藏
     const fab = document.getElementById('he-fab');
     let startX = 0, startY = 0, dragged = false, isDown = false;
     if (fab) {
@@ -1017,6 +1177,8 @@
         dragged = false;
         startX = e.clientX;
         startY = e.clientY;
+        // 按下瞬间先解除半隐藏态方便拉出
+        fab.classList.remove('he-dock-left', 'he-dock-right');
         try { fab.setPointerCapture(e.pointerId); } catch (_) {}
       });
       fab.addEventListener('pointermove', e => {
@@ -1025,27 +1187,52 @@
         const dy = e.clientY - startY;
         if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
           dragged = true;
-          const right = Math.max(6, Math.min(window.innerWidth - 52, window.innerWidth - e.clientX - 22));
-          const bottom = Math.max(6, Math.min(window.innerHeight - 52, window.innerHeight - e.clientY - 22));
-          fab.style.right = right + 'px';
+          const bottom = Math.max(10, Math.min(window.innerHeight - 54, window.innerHeight - e.clientY - 22));
+          const left = Math.max(0, Math.min(window.innerWidth - 44, e.clientX - 22));
+          fab.style.left = left + 'px';
+          fab.style.right = 'auto';
           fab.style.bottom = bottom + 'px';
-          globalSettings.fabPos = { right, bottom };
         }
       });
-      fab.addEventListener('pointerup', () => {
-        if (isDown && dragged) saveGlobalSettings();
+      fab.addEventListener('pointerup', e => {
+        if (!isDown) return;
         isDown = false;
+        if (dragged) {
+          const bottom = Math.max(10, Math.min(window.innerHeight - 54, window.innerHeight - e.clientY - 22));
+          const distLeft = e.clientX;
+          const distRight = window.innerWidth - e.clientX;
+          // 距离左右边缘 42px 内松手自动吸附并收进一半
+          if (distLeft <= 42) {
+            globalSettings.fabPos = { side: 'left', left: 0, bottom, docked: true };
+          } else if (distRight <= 42) {
+            globalSettings.fabPos = { side: 'right', right: 0, bottom, docked: true };
+          } else if (distLeft < distRight) {
+            globalSettings.fabPos = { side: 'left', left: Math.max(8, distLeft - 22), bottom, docked: false };
+          } else {
+            globalSettings.fabPos = { side: 'right', right: Math.max(8, distRight - 22), bottom, docked: false };
+          }
+          saveGlobalSettings();
+          applyFabPosition();
+        }
       });
       fab.addEventListener('click', e => {
         if (dragged) {
           e.stopPropagation();
           return;
         }
+        // 如果正处于半隐藏态，点一下先丝滑弹出并打开面板
+        if (globalSettings.fabPos?.docked) {
+          globalSettings.fabPos.docked = false;
+          if (globalSettings.fabPos.side === 'left') globalSettings.fabPos.left = 14;
+          else globalSettings.fabPos.right = 14;
+          saveGlobalSettings();
+          applyFabPosition();
+        }
         openPanel();
       });
     }
 
-    // 2. 安卓键盘弹出“屏幕中线定位法”（严守第 07 章铁律）
+    // 2. 安卓键盘弹出“屏幕中线定位法”
     const bodyEl = document.getElementById('he-body');
     root.addEventListener('focusin', e => {
       const t = e.target;
@@ -1060,16 +1247,12 @@
       if (bodyEl) bodyEl.style.paddingBottom = '';
     });
 
-    // 3. 搜索框实时过滤书架
     document.getElementById('he-shelf-search')?.addEventListener('input', () => renderShelfList());
-
-    // 4. 模型下拉选择同步
     document.getElementById('he-model-select')?.addEventListener('change', e => {
       const inp = document.getElementById('he-set-model');
       if (inp && e.target.value) inp.value = e.target.value;
     });
 
-    // 5. 点击遮罩空白处或按 ESC 正常退出
     document.getElementById('he-backdrop')?.addEventListener('click', e => {
       if (e.target.id === 'he-backdrop') closePanel();
     });
@@ -1077,7 +1260,7 @@
       if (e.key === 'Escape') closePanel();
     });
 
-    // 6. 全局 data-act 事件委托
+    // 3. 全局 data-act 事件委托
     root.addEventListener('click', async e => {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
@@ -1086,16 +1269,61 @@
 
       if (act === 'close-panel') {
         closePanel();
+      } else if (act === 'toggle-fullscreen') {
+        toggleFullscreen();
       } else if (act === 'switch-tab') {
         collectFormToData();
         currentTab = btn.getAttribute('data-tab') || 'mind';
         root.querySelectorAll('.he-tab').forEach(t => t.classList.toggle('he-active', t.getAttribute('data-tab') === currentTab));
         root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === currentTab));
         renderPanelFromData();
+      } else if (act === 'select-prof') {
+        collectFormToData();
+        d.activeCharIdx = parseInt(btn.getAttribute('data-idx'), 10) || 0;
+        renderPanelFromData();
+      } else if (act === 'add-prof') {
+        collectFormToData();
+        const newName = window.prompt('请输入新增攻略/同场角色的名字：', '新角色 ' + (d.profiles.length + 1));
+        if (!newName) return;
+        d.profiles.push(createSingleProfile(newName.trim()));
+        d.activeCharIdx = d.profiles.length - 1;
+        saveChatData();
+        renderPanelFromData();
+        setStatus(`已添加角色【${newName.trim()}】独立心智卡`);
+      } else if (act === 'delete-prof') {
+        if (d.profiles.length <= 1) {
+          setStatus('至少需要保留 1 个主控角色心智卡', true);
+          return;
+        }
+        collectFormToData();
+        const curName = getCurrentProfile(d).name;
+        if (!window.confirm(`确定要删除角色【${curName}】的心智卡吗？（删除后可通过顶栏退回上一档恢复）`)) return;
+        pushHistorySnapshot('删除角色子卡前备份');
+        d.profiles.splice(d.activeCharIdx, 1);
+        d.activeCharIdx = 0;
+        saveChatData();
+        renderPanelFromData();
+      } else if (act === 'toggle-prof-lock') {
+        collectFormToData();
+        const p = getCurrentProfile(d);
+        if (p) p.locked = !p.locked;
+        saveChatData();
+        renderPanelFromData();
+      } else if (act === 'set-init-gear') {
+        collectFormToData();
+        d.initiativeGear = parseInt(btn.getAttribute('data-gear'), 10) || 1;
+        saveChatData();
+        renderPanelFromData();
+        setStatus(`关系主动推进引擎已切至 ${d.initiativeGear} 档`);
+      } else if (act === 'set-gear') {
+        collectFormToData();
+        d.secretGear = parseInt(btn.getAttribute('data-gear'), 10) || 2;
+        saveChatData();
+        renderPanelFromData();
+        setStatus(`通用伏笔/掉马推进器已切至 ${d.secretGear} 档`);
       } else if (act === 'cycle-theme') {
         const order = ['auto', 'dark', 'light'];
-        const next = order[(order.indexOf(globalSettings.theme) + 1) % order.length];
-        globalSettings.theme = next;
+        globalSettings.theme = order[(order.indexOf(globalSettings.theme) + 1) % order.length];
         saveGlobalSettings();
         applyThemeClass();
       } else if (act === 'toggle-lock') {
@@ -1104,15 +1332,9 @@
         if (k) d.locks[k] = !d.locks[k];
         saveChatData();
         renderPanelFromData();
-      } else if (act === 'set-gear') {
-        collectFormToData();
-        d.secretGear = parseInt(btn.getAttribute('data-gear'), 10) || 2;
-        saveChatData();
-        renderPanelFromData();
-        setStatus(`已切换至 ${d.secretGear} 档暗线模式`);
       } else if (act === 'add-act') {
         collectFormToData();
-        d.acts.push({ id: 'act_' + Date.now(), title: '新分幕', summary: '', checked: false });
+        d.acts.push({ id: 'act_' + Date.now(), title: '手写分幕', summary: '', checked: false });
         saveChatData();
         renderActsList(d);
       } else if (act === 'delete-act') {
@@ -1128,18 +1350,24 @@
       } else if (act === 'merge-selected-acts') {
         collectFormToData();
         await handleMergeSelectedActs(d);
+      } else if (act === 'hide-floors') {
+        handleHideOrUnhideFloors(true);
+      } else if (act === 'unhide-floors') {
+        handleHideOrUnhideFloors(false);
       } else if (act === 'undo-history') {
         if (!d.history || !d.history.length) {
           setStatus('暂无可回退的历史档位', true);
           return;
         }
         const snap = d.history.shift();
-        d.charMind = snap.charMind;
+        if (snap.profiles) d.profiles = snap.profiles;
         d.userNote = snap.userNote;
         d.secretLedger = snap.secretLedger;
         d.acts = snap.acts;
         d.snapshot = snap.snapshot;
         d.npcs = snap.npcs;
+        if (snap.initiativeGear) d.initiativeGear = snap.initiativeGear;
+        if (snap.secretGear) d.secretGear = snap.secretGear;
         saveChatData();
         renderPanelFromData();
         setStatus(`已回退至历史档位（${snap.time} · ${snap.reason}）`);
@@ -1161,20 +1389,25 @@
         document.getElementById('he-preview-box').style.display = 'none';
         saveChatData();
         renderPanelFromData();
-        setStatus('新总结已生效并存盘！若不满意可随时点顶栏「退回上一档」');
+        if (d.injectMode === 'floor') {
+          handleInsertToFloor(d, true);
+        } else {
+          setStatus('新总结已正式生效并新增一幕卷宗！可随时点顶栏「退回上一档」');
+        }
       } else if (act === 'cancel-preview') {
         previewDraft = null;
         document.getElementById('he-preview-box').style.display = 'none';
-        setStatus('已放弃本次生成结果');
+        renderPanelFromData();
+        setStatus('已放弃本次生成结果，恢复原内容');
       } else if (act === 'insert-to-floor') {
         collectFormToData();
         saveChatData();
-        handleInsertToFloor(d);
+        handleInsertToFloor(d, false);
       } else if (act === 'export-worldbook') {
         collectFormToData();
         const txt = buildFormattedPromptBlock(d, false);
         await navigator.clipboard?.writeText(txt);
-        setStatus('已复制世界书格式文本到剪贴板！可直接粘贴至新窗口世界书');
+        setStatus('已复制世界书格式文本到剪贴板！');
       } else if (act === 'copy-shelf-item') {
         const cName = btn.getAttribute('data-char');
         const cId = btn.getAttribute('data-chat');
@@ -1197,7 +1430,37 @@
     });
   }
 
-  // 执行 AI 提炼总结
+  // 玩家手动自由指定隐藏或恢复显示楼层
+  function handleHideOrUnhideFloors(toHide) {
+    const ctx = getCtx();
+    const chat = ctx.chat || [];
+    if (!chat.length) {
+      setStatus('当前没有可操作的聊天楼层', true);
+      return;
+    }
+    const sRaw = document.getElementById('he-hide-start')?.value;
+    const eRaw = document.getElementById('he-hide-end')?.value;
+    const s = Math.max(0, parseInt(sRaw, 10) || 0);
+    const e = Math.min(chat.length - 1, isNaN(parseInt(eRaw, 10)) ? chat.length - 1 : parseInt(eRaw, 10));
+
+    if (s > e) {
+      setStatus('起始楼层不能大于结束楼层', true);
+      return;
+    }
+
+    let count = 0;
+    for (let i = s; i <= e; i++) {
+      if (chat[i]) {
+        chat[i].is_system = !!toHide;
+        count++;
+      }
+    }
+    saveChatData();
+    try { ctx.reloadCurrentChat?.(); } catch (_) {}
+    setStatus(toHide ? `已成功隐藏第 ${s} ~ ${e} 楼（共 ${count} 楼）！` : `已恢复显示第 ${s} ~ ${e} 楼（共 ${count} 楼）！`);
+  }
+
+  // 执行 AI 总结（支持从任意页签点底栏触发，支持多人卡按名字自动对号入座）
   async function handleRunSummary(d) {
     const startVal = document.getElementById('he-sum-start')?.value;
     const endVal = document.getElementById('he-sum-end')?.value;
@@ -1210,8 +1473,11 @@
       return;
     }
 
-    setStatus(`正在提炼 ${slice.count} 楼剧情与心智微变，请稍候...`);
-    const sysPrompt = (globalSettings.customPrompt || DEFAULT_PROMPT) + '\n\n' + getSpanRuleText(slice.count, noteVal);
+    const presentProfs = (d.profiles || []).filter(p => p.present !== false);
+    const presentNames = presentProfs.map(p => p.name || '主控角色');
+
+    setStatus(`正在提炼 ${slice.count} 楼剧情与 [${presentNames.join('、')}] 的心智微变...`);
+    const sysPrompt = (globalSettings.customPrompt || DEFAULT_PROMPT) + '\n\n' + getSpanRuleText(slice.count, noteVal, presentNames);
     const userPayload = `【既有心智与账本参考】\n${buildFormattedPromptBlock(d, false)}\n\n【待总结新增对话（共${slice.count}楼）】\n${slice.text}`;
 
     const aiRaw = await callCleanLLM(sysPrompt, userPayload);
@@ -1224,14 +1490,19 @@
     }
 
     previewDraft = parsed;
-    // 先将未锁定的字段填入表单供用户直观预览修改
-    if (!d.locks.charMind && parsed.charMind) {
-      document.getElementById('he-f-innerVoice').value = parsed.charMind.innerVoice || d.charMind.innerVoice;
-      document.getElementById('he-f-selfBase').value = parsed.charMind.selfBase || d.charMind.selfBase;
-      document.getElementById('he-f-surfaceView').value = parsed.charMind.surfaceView || d.charMind.surfaceView;
-      document.getElementById('he-f-subconscious').value = parsed.charMind.subconscious || d.charMind.subconscious;
-      document.getElementById('he-f-anchors').value = parsed.charMind.anchors || d.charMind.anchors;
-    }
+
+    // 跳转到第⑤页展示确认按钮，同时将预览写入临时视图
+    currentTab = 'npcs';
+    const root = document.getElementById('he-root');
+    root.querySelectorAll('.he-tab').forEach(t => t.classList.toggle('he-active', t.getAttribute('data-tab') === 'npcs'));
+    root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === 'npcs'));
+    document.getElementById('he-preview-box').style.display = 'block';
+
+    const modeTip = d.injectMode === 'floor' ? '点「确认应用」将自动生成新一幕并直接插入聊天楼层！' : '可切去各页签检查修改，满意后回第⑤页点「确认应用」！';
+    setStatus(`提炼完成！${modeTip}`);
+
+    // 临时填入未锁定字段供用户在各页签预览
+    applyMindPreviewToProfiles(d, parsed);
     if (parsed.secretLedger) {
       document.getElementById('he-f-truthAndMask').value = parsed.secretLedger.truthAndMask || d.secretLedger.truthAndMask;
       document.getElementById('he-f-charClues').value = parsed.secretLedger.charClues || d.secretLedger.charClues;
@@ -1247,9 +1518,42 @@
     if (parsed.npcs) {
       document.getElementById('he-f-npcs').value = parsed.npcs;
     }
+  }
 
-    document.getElementById('he-preview-box').style.display = 'block';
-    setStatus('提炼完成！你可直接在各页签检查修改文字，确认无误后点「确认应用」');
+  function applyMindPreviewToProfiles(d, parsed) {
+    // 兼容多人 characterMinds 数组与单人 charMind 对象
+    const list = Array.isArray(parsed.characterMinds)
+      ? parsed.characterMinds
+      : (parsed.charMind ? [Object.assign({ name: getCurrentProfile(d).name }, parsed.charMind)] : []);
+
+    list.forEach(item => {
+      if (!item) return;
+      // 匹配已有角色或默认匹配第一个在场未锁角色
+      let target = d.profiles.find(p => p.name && item.name && (p.name.includes(item.name) || item.name.includes(p.name)));
+      if (!target && d.profiles.length === 1) target = d.profiles[0];
+      if (!target && item.name) {
+        target = createSingleProfile(item.name);
+        d.profiles.push(target);
+      }
+      if (target && !target.locked) {
+        target.selfBase = item.selfBase || target.selfBase;
+        target.surfaceView = item.surfaceView || target.surfaceView;
+        target.subconscious = item.subconscious || target.subconscious;
+        target.innerVoice = item.innerVoice || target.innerVoice;
+        target.anchors = item.anchors || target.anchors;
+      }
+    });
+
+    // 刷新当前选中角色输入框显示
+    const cur = getCurrentProfile(d);
+    if (cur) {
+      document.getElementById('he-f-innerVoice').value = cur.innerVoice;
+      document.getElementById('he-f-selfBase').value = cur.selfBase;
+      document.getElementById('he-f-surfaceView').value = cur.surfaceView;
+      document.getElementById('he-f-subconscious').value = cur.subconscious;
+      document.getElementById('he-f-anchors').value = cur.anchors;
+    }
+    renderCharSubtabs(d);
   }
 
   function applyDraftToChatData(d, draft) {
@@ -1264,7 +1568,6 @@
     }
   }
 
-  // 自由勾选分幕合并（绝不强制一锅乱炖）
   async function handleMergeSelectedActs(d) {
     const selectedIndices = [];
     d.acts.forEach((a, idx) => {
@@ -1298,8 +1601,7 @@
     setStatus('勾选分幕已成功合并！未勾选的卷宗完好保留');
   }
 
-  // 美化排版插入当前聊天楼层 + 可选隐藏前面旧楼（延续果实QR安心感）
-  function handleInsertToFloor(d) {
+  function handleInsertToFloor(d, fromAutoConfirm) {
     const ctx = getCtx();
     if (!Array.isArray(ctx.chat)) {
       setStatus('当前未处于有效聊天窗口中', true);
@@ -1314,22 +1616,12 @@
       mes: blockHtml
     });
 
-    // 询问是否顺手隐藏旧楼（保留第0楼开场白 + 尾部 keepFloors 楼）
-    const keep = Math.max(2, parseInt(globalSettings.keepFloors, 10) || 12);
-    const hideEnd = ctx.chat.length - 1 - keep;
-    if (hideEnd > 1 && window.confirm(`记忆折叠块已生成！是否自动隐藏第 1 楼至第 ${hideEnd} 楼的旧对话（自动保留第 0 楼开场白与最后 ${keep} 楼不断气）？`)) {
-      for (let i = 1; i <= hideEnd; i++) {
-        if (ctx.chat[i]) ctx.chat[i].is_system = true;
-      }
-    }
-
     d.injectMode = 'floor';
     saveChatData();
     try { ctx.reloadCurrentChat?.(); } catch (e) {}
-    closePanel();
+    setStatus(fromAutoConfirm ? '总结已生效并自动作为新楼层插入当前聊天！' : '已将美化排版记忆块插入当前聊天最新一楼！');
   }
 
-  // 拉取模型列表
   async function handleFetchModels() {
     const base = String(globalSettings.baseUrl || '').trim().replace(/\/+$/, '');
     const key = String(globalSettings.apiKey || '').trim();
@@ -1361,7 +1653,7 @@
   }
 
   // =========================================================================
-  // 八、事件监听与三明治静默注入（严守第 09 章 CHAT_COMPLETION_PROMPT_READY 铁律）
+  // 八、事件监听与三明治静默注入
   // =========================================================================
   function bindTavernEvents() {
     const ctx = getCtx();
@@ -1369,13 +1661,11 @@
     const event_types = ctx.event_types || window.event_types;
     if (!eventSource || !event_types) return;
 
-    // 1. 生成前静默注入（采用三明治隔离法卡在第 0 楼开场白之后，兼顾文风与切口衔接）
     if (event_types.CHAT_COMPLETION_PROMPT_READY) {
       eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, eventData => {
         try {
           const d = getChatData();
           if (d.injectMode === 'none') return;
-          // 防双倍扣 Token 锁：若聊天楼层里已有可见的本插件总结块，则暂停后台重复注入
           if (hasVisibleFloorSummary(ctx.chat)) return;
 
           const promptBlock = buildFormattedPromptBlock(d, false);
@@ -1395,7 +1685,6 @@
       });
     }
 
-    // 2. 监听新消息到达，支持定时楼层提醒
     const msgEvt = event_types.MESSAGE_RECEIVED || event_types.MESSAGE_UPDATED || event_types.MESSAGE_SENT;
     if (msgEvt) {
       eventSource.on(msgEvt, () => {
@@ -1412,7 +1701,7 @@
   }
 
   // =========================================================================
-  // 九、三重保险幂等启动（严守第 03 章 APP_READY + 轮询 + 幂等铁律）
+  // 九、三重保险幂等启动
   // =========================================================================
   let doneInit = false;
   function fireInit() {
