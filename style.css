@@ -1,0 +1,374 @@
+/* ==========================================================================
+   心语回响 (HeartEcho) - 响应式双端样式表
+   Author: stringkilo777 | 严守全内联 SVG、零 Emoji、独立前缀 he- 隔离铁律
+   ========================================================================== */
+
+#he-root {
+  /* 默认自动继承酒馆当前主题色，读不到时使用优雅深色兜底 */
+  --he-bg: var(--SmartThemeBlurTintColor, #181b22);
+  --he-panel: var(--SmartThemeChatTintColor, #20242d);
+  --he-card: rgba(255, 255, 255, 0.04);
+  --he-card-hover: rgba(255, 255, 255, 0.07);
+  --he-text: var(--SmartThemeBodyColor, #e8e4dc);
+  --he-muted: var(--SmartThemeEmColor, #9ba3b0);
+  --he-accent: var(--SmartThemeQuoteColor, #c8a45f);
+  --he-border: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+  --he-danger: #d9534f;
+  --he-ok: #5cb85c;
+  --he-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+  font-family: inherit;
+  color: var(--he-text);
+  box-sizing: border-box;
+}
+
+/* 独立浅色主题兜底 */
+#he-root.he-theme-light {
+  --he-bg: #f5f3ee;
+  --he-panel: #fdfcfa;
+  --he-card: #ffffff;
+  --he-card-hover: #f0ede6;
+  --he-text: #26292e;
+  --he-muted: #6c737d;
+  --he-accent: #1e3a5f;
+  --he-border: rgba(0, 0, 0, 0.12);
+  --he-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* 独立深色主题兜底 */
+#he-root.he-theme-dark {
+  --he-bg: #14171d;
+  --he-panel: #1c2029;
+  --he-card: #252a36;
+  --he-card-hover: #2e3442;
+  --he-text: #e6e2d8;
+  --he-muted: #8c95a6;
+  --he-accent: #d4af6a;
+  --he-border: rgba(255, 255, 255, 0.1);
+}
+
+#he-root *,
+#he-root *::before,
+#he-root *::after {
+  box-sizing: border-box;
+}
+
+/* ===== 悬浮球 (FAB) ===== */
+#he-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 90px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--he-panel);
+  color: var(--he-accent);
+  border: 1.5px solid var(--he-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2000001;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+#he-fab:active {
+  filter: brightness(0.88);
+}
+
+#he-fab.he-hidden {
+  display: none !important;
+}
+
+/* ===== 遮罩与主面板 ===== */
+#he-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 2000002;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+#he-backdrop.he-open {
+  display: flex;
+  animation: he-fade-in 0.2s ease-out;
+}
+
+@keyframes he-fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+#he-panel {
+  width: 100%;
+  max-width: 780px;
+  max-height: 88vh;
+  background: var(--he-bg);
+  border: 1px solid var(--he-border);
+  border-radius: 12px;
+  box-shadow: var(--he-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== 顶栏 ===== */
+.he-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--he-panel);
+  border-bottom: 1px solid var(--he-border);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.he-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--he-accent);
+}
+
+.he-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ===== 导航页签栏 ===== */
+.he-tabs {
+  display: flex;
+  background: var(--he-panel);
+  border-bottom: 1px solid var(--he-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.he-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.he-tab {
+  flex: 1 0 auto;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--he-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.he-tab.he-active {
+  color: var(--he-accent);
+  border-bottom-color: var(--he-accent);
+  font-weight: 600;
+}
+
+.he-tab:active {
+  filter: brightness(0.88);
+}
+
+/* ===== 内容滚动区 ===== */
+.he-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.he-pane {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.he-pane.he-active {
+  display: flex;
+}
+
+/* ===== 卡片与表单控件 ===== */
+.he-card {
+  background: var(--he-card);
+  border: 1px solid var(--he-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.he-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--he-accent);
+}
+
+.he-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.he-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .he-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.he-label {
+  font-size: 12px;
+  color: var(--he-muted);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.he-input,
+.he-textarea,
+.he-select {
+  width: 100%;
+  background: var(--he-panel);
+  color: var(--he-text);
+  border: 1px solid var(--he-border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.he-textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+.he-input:focus,
+.he-textarea:focus,
+.he-select:focus {
+  border-color: var(--he-accent);
+}
+
+/* ===== 按钮与标签 ===== */
+.he-btn {
+  background: var(--he-card);
+  color: var(--he-text);
+  border: 1px solid var(--he-border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.he-btn:active {
+  transform: scale(0.95);
+  filter: brightness(0.88);
+}
+
+.he-btn-primary {
+  background: var(--he-accent);
+  color: #14171d;
+  border-color: var(--he-accent);
+  font-weight: 600;
+}
+
+.he-btn-danger {
+  color: var(--he-danger);
+  border-color: rgba(217, 83, 79, 0.4);
+}
+
+.he-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--he-border);
+  color: var(--he-muted);
+}
+
+.he-badge.he-locked {
+  color: var(--he-accent);
+  border-color: var(--he-accent);
+}
+
+/* 四档变速箱按钮组 */
+.he-gear-group {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 520px) {
+  .he-gear-group {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.he-gear-btn {
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid var(--he-border);
+  background: var(--he-panel);
+  color: var(--he-muted);
+  cursor: pointer;
+}
+
+.he-gear-btn.he-active {
+  border-color: var(--he-accent);
+  color: var(--he-accent);
+  font-weight: 600;
+  background: rgba(200, 164, 95, 0.12);
+}
+
+/* ===== 底栏操作区 ===== */
+.he-footer {
+  padding: 10px 14px;
+  background: var(--he-panel);
+  border-top: 1px solid var(--he-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.he-status-bar {
+  font-size: 12px;
+  color: var(--he-muted);
+}
