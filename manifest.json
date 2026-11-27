@@ -2,10 +2,10 @@
   "display_name": "心语回响",
   "name": "HeartEcho",
   "id": "heart-echo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "extension",
   "js": "index.js",
   "css": "style.css",
   "author": "stringkilo777",
-  "description": "支持单框全屏精修、双向历史时光机、单删/替换指定总结楼层、一键塞入已有世界书、三层角色记忆书架与多人卡心智演化的双端记忆扩展。"
+  "description": "兼具零重载安全楼层管理、书架跨窗口免加载编辑、只读默认提示词保护、塞入已有世界书与多人卡心智演化的双端记忆扩展。"
 }
