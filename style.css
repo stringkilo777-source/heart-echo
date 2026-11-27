@@ -1,6 +1,6 @@
 /* ==========================================================================
-   心语回响 (HeartEcho) v1.2.0 - 响应式双端样式表
-   Author: stringkilo777 | 严守全内联 SVG、零 Emoji、独立前缀 he- 隔离铁律
+   心语回响 (HeartEcho) v1.2.1 - 响应式双端样式表
+   Author: stringkilo777 | 全内联线性 SVG、零 Emoji、独立前缀 he- 隔离
    ========================================================================== */
 
 #he-root {
@@ -49,7 +49,7 @@
   box-sizing: border-box;
 }
 
-/* ===== 悬浮球 (支持左右贴边半隐藏) ===== */
+/* ===== 悬浮球 (左右贴边半隐藏) ===== */
 #he-fab {
   position: fixed;
   width: 44px;
@@ -136,7 +136,7 @@
   border: none;
 }
 
-/* ===== 顶栏与页签栏（加 flex-shrink:0 彻底修复图一窄屏挤扁问题） ===== */
+/* ===== 顶栏、跨窗编辑横幅与防挤扁页签栏 ===== */
 .he-header {
   flex-shrink: 0;
   display: flex;
@@ -156,12 +156,28 @@
   font-weight: 600;
   font-size: 15px;
   color: var(--he-accent);
+  flex-wrap: wrap;
 }
 
 .he-header-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+#he-remote-banner {
+  flex-shrink: 0;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 14px;
+  background: rgba(200, 164, 95, 0.16);
+  border-bottom: 1px solid var(--he-accent);
+  font-size: 12.5px;
+  color: var(--he-accent);
+  font-weight: 600;
   flex-wrap: wrap;
 }
 
@@ -220,7 +236,7 @@
 .he-char-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -236,6 +252,16 @@
   font-weight: 600;
   background: rgba(200, 164, 95, 0.14);
 }
+
+.he-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.he-dot.on { background: var(--he-ok); }
+.he-dot.off { border: 1px solid var(--he-muted); background: transparent; }
 
 /* ===== 主体滚动区 ===== */
 .he-body {
@@ -256,7 +282,7 @@
 
 .he-pane.he-active { display: flex; }
 
-/* ===== 卡片与表单（防溢出加固） ===== */
+/* ===== 卡片与表单 ===== */
 .he-card {
   background: var(--he-card);
   border: 1px solid var(--he-border);
@@ -307,22 +333,24 @@
   gap: 6px;
 }
 
-.he-zoom-link {
+/* 纯图标单框放大按钮（去掉多余文字） */
+.he-zoom-icon-btn {
   background: transparent;
   border: 1px solid var(--he-border);
   color: var(--he-muted);
   border-radius: 4px;
-  padding: 1px 6px;
-  font-size: 11px;
+  width: 24px;
+  height: 22px;
+  padding: 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.he-zoom-link:hover,
-.he-zoom-link:active {
+.he-zoom-icon-btn:hover,
+.he-zoom-icon-btn:active {
   color: var(--he-accent);
   border-color: var(--he-accent);
 }
@@ -438,7 +466,7 @@
   background: rgba(200, 164, 95, 0.14);
 }
 
-/* ===== 底栏（固定不压缩） ===== */
+/* ===== 底栏 ===== */
 .he-footer {
   flex-shrink: 0;
   padding: 9px 14px;
@@ -458,7 +486,7 @@
   min-width: 160px;
 }
 
-/* ===== 二级弹窗（单框全屏精修 / 二次确认 / 历史时光机 / 世界书塞入） ===== */
+/* ===== 二级弹窗 ===== */
 #he-submodal {
   position: fixed;
   inset: 0;
@@ -470,13 +498,11 @@
   padding: 12px;
 }
 
-#he-submodal.he-open {
-  display: flex;
-}
+#he-submodal.he-open { display: flex; }
 
 .he-submodal-box {
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
   max-height: 90vh;
   background: var(--he-bg);
   border: 1px solid var(--he-accent);
@@ -510,15 +536,4 @@
 
 .he-shelf-card-click:hover {
   background: var(--he-card-hover);
-}
-
-.he-read-block {
-  white-space: pre-wrap;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--he-text);
-  background: var(--he-panel);
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--he-border);
-}
+   }
