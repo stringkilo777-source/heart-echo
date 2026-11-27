@@ -2,10 +2,10 @@
   "display_name": "心语回响",
   "name": "HeartEcho",
   "id": "heart-echo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "extension",
   "js": "index.js",
   "css": "style.css",
   "author": "stringkilo777",
-  "description": "兼具多人卡独立心智微变、破99.99%关系主动引擎、通用伏笔掉马四档变速、防吃书铁律与自由分幕合并的双端记忆扩展（完美适配 Tauri Tavern 与标准版 SillyTavern）。"
+  "description": "支持单框全屏精修、双向历史时光机、单删/替换指定总结楼层、一键塞入已有世界书、三层角色记忆书架与多人卡心智演化的双端记忆扩展。"
 }
