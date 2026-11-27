@@ -2,13 +2,14 @@
   'use strict';
 
   // =========================================================================
-  // 一、常量与安全上下文获取
+  // 一、常量、安全上下文与欢迎页防呆熔断锁
   // =========================================================================
   const PLUGIN_ID = 'heart-echo';
   const PLUGIN_NAME = '心语回响';
-  const PLUGIN_VERSION = '1.2.0';
+  const PLUGIN_VERSION = '1.2.1';
   const STORAGE_GLOBAL_KEY = 'he_global_settings_v1';
   const STORAGE_SHELF_KEY = 'he_character_shelf_v1';
+  const STORAGE_EMERGENCY_KEY = 'he_emergency_floor_backup_v1';
   const FLOOR_MARK = '<!-- HEART_ECHO_SUMMARY_BLOCK -->';
 
   function getCtx() {
@@ -17,6 +18,14 @@
     } catch (e) {
       return {};
     }
+  }
+
+  // ★ 核心防丢锁：严格判断当前是否打开了真实的角色/群聊窗口（拦截 TauriTavern 欢迎页误操作）
+  function isValidActiveChat() {
+    const ctx = getCtx();
+    const hasChar = ctx.characterId !== undefined && ctx.characterId !== null && ctx.characterId !== '';
+    const hasGroup = !!ctx.groupId;
+    return (hasChar || hasGroup) && !!ctx.chatId && Array.isArray(ctx.chat);
   }
 
   // 纯内联线性 SVG 图标库（零 Emoji）
@@ -36,11 +45,12 @@
     eyeOff: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
     eye: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
     back: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
-    book: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
+    book: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    edit: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>'
   };
 
   // =========================================================================
-  // 二、内置多套提示词模板与默认数据结构
+  // 二、内置只读默认提示词模板与默认数据结构
   // =========================================================================
   const BASE_JSON_SCHEMA = `
 【必须输出的合法 JSON 格式（不要输出代码块标记或额外解释）】
@@ -74,8 +84,9 @@
 
   const BUILTIN_PROMPTS = [
     {
-      id: 'default_echo',
-      name: '① 通用细腻心智 + 掉马宿命版（默认）',
+      id: 'builtin_echo',
+      builtin: true,
+      name: '[默认只读] 通用细腻心智 + 掉马宿命版',
       content: `你是「心语回响」叙事与心智归档师。请读取对话并结合既有档案，输出更新后的 JSON：
 【核心铁律】
 1. 拒绝流水账与好感百分比：严禁用百分比数值！用性格底色守恒下的微变、嘴硬心软或下意识偏袒来刻画感情。
@@ -84,8 +95,9 @@
 4. 多人卡独立归档：按在场名单分别归档，严禁串台。` + BASE_JSON_SCHEMA
     },
     {
-      id: 'angst_chasing',
-      name: '② 恨海情天 / 追妻火葬场强张力版',
+      id: 'builtin_angst',
+      builtin: true,
+      name: '[默认只读] 恨海情天 / 追妻火葬场版',
       content: `你是专精「恨海情天与追妻火葬场」的叙事心理归档师。请读取对话并输出 JSON：
 【核心铁律】
 1. 深挖愧疚与失控感：重点提炼角色的悔恨、恐慌、放下身段的实质赎罪行动，严禁把感情写成平淡说教。
@@ -93,8 +105,9 @@
 3. 精准捕捉爱恨拉扯：区分表面决绝与潜意识里的痛楚执念，原样保留最具冲突张力的台词。` + BASE_JSON_SCHEMA
     },
     {
-      id: 'infinite_apocalypse',
-      name: '③ 末世 / 无限流智斗与硬核状态版',
+      id: 'builtin_infinite',
+      builtin: true,
+      name: '[默认只读] 末世 / 无限流硬核智斗版',
       content: `你是专精「末世生存与无限流副本」的逻辑与状态归档师。请读取对话并输出 JSON：
 【核心铁律】
 1. 硬核状态零误差：在 hardFacts 与 snapshot 中精确记录异能冷却、伤势感染度、弹药物资余量、副本规则禁忌与通关线索。
@@ -102,6 +115,10 @@
 3. 伏笔与阵营清晰：准确归档各阵营 NPC 存活状态与立场背叛线索。` + BASE_JSON_SCHEMA
     }
   ];
+
+  function getBuiltinById(id) {
+    return BUILTIN_PROMPTS.find(b => b.id === id) || null;
+  }
 
   function createSingleProfile(name) {
     return {
@@ -120,7 +137,7 @@
     return {
       version: PLUGIN_VERSION,
       updatedAt: Date.now(),
-      lastSummarizedFloor: -1, // 记录上次总结截止楼层，方便下次一键续接
+      lastSummarizedFloor: -1,
       injectMode: 'silent',
       actionLock: 'normal',
       initiativeGear: 1,
@@ -142,10 +159,10 @@
       baseUrl: '',
       apiKey: '',
       model: '',
-      apiPresets: [], // [{ id, name, baseUrl, apiKey, model }]
+      apiPresets: [],
       activeApiPresetId: '',
-      promptPresets: JSON.parse(JSON.stringify(BUILTIN_PROMPTS)),
-      activePromptId: 'default_echo',
+      userPromptPresets: [], // 仅存用户自己复制/新建的可编辑提示词预设
+      activePromptId: 'builtin_echo',
       customPrompt: BUILTIN_PROMPTS[0].content,
       theme: 'auto',
       showFab: true,
@@ -155,14 +172,19 @@
   }
 
   // =========================================================================
-  // 三、持久化、双向时光机备份与三层角色书架存储
+  // 三、状态变量、跨窗口书架编辑上下文与安全落盘（零 reloadCurrentChat）
   // =========================================================================
   let globalSettings = createDefaultSettings();
   let currentTab = 'mind';
   let previewDraft = null;
   let isFullscreen = false;
-  // 书架三层导航状态：level 1(角色列表) -> level 2(分支窗口列表) -> level 3(完整详情阅读)
-  let shelfNav = { level: 1, charName: '', chatId: '' };
+  let shelfNav = { level: 1, charName: '' };
+  // 跨窗免加载编辑目标：null 表示正在编辑当前打开的聊天；非 null 表示正在跨窗编辑书架里的某个分支存档
+  let remoteEditTarget = null; // { charName, chatId, data }
+
+  function getAllPromptPresets() {
+    return [...BUILTIN_PROMPTS, ...(globalSettings.userPromptPresets || [])];
+  }
 
   function loadGlobalSettings() {
     try {
@@ -172,10 +194,20 @@
       const parsedLocal = rawLocal ? JSON.parse(rawLocal) : null;
       globalSettings = Object.assign(createDefaultSettings(), extStore || {}, parsedLocal || {});
       if (!Array.isArray(globalSettings.apiPresets)) globalSettings.apiPresets = [];
-      if (!Array.isArray(globalSettings.promptPresets) || !globalSettings.promptPresets.length) {
-        globalSettings.promptPresets = JSON.parse(JSON.stringify(BUILTIN_PROMPTS));
+      // 迁移旧版自定义提示词（排除内置只读项）
+      if (!Array.isArray(globalSettings.userPromptPresets)) {
+        const oldCustom = Array.isArray(globalSettings.promptPresets)
+          ? globalSettings.promptPresets.filter(p => p && !p.id?.startsWith('builtin_') && p.id !== 'default_echo' && p.id !== 'angst_chasing' && p.id !== 'infinite_apocalypse')
+          : [];
+        globalSettings.userPromptPresets = oldCustom;
       }
-      if (!globalSettings.customPrompt) globalSettings.customPrompt = BUILTIN_PROMPTS[0].content;
+      const activeBuiltin = getBuiltinById(globalSettings.activePromptId);
+      if (activeBuiltin) {
+        globalSettings.customPrompt = activeBuiltin.content;
+      } else if (!globalSettings.customPrompt) {
+        globalSettings.activePromptId = 'builtin_echo';
+        globalSettings.customPrompt = BUILTIN_PROMPTS[0].content;
+      }
     } catch (e) {
       console.warn('[HeartEcho] loadGlobalSettings error:', e);
     }
@@ -194,18 +226,8 @@
     }
   }
 
-  function getChatData() {
-    const ctx = getCtx();
-    const defaultName = ctx.name2 || '主控角色';
-    const meta = ctx.chatMetadata || window.chat_metadata;
-    if (!meta) return createEmptyChatData(defaultName);
-    meta.extensions = meta.extensions || {};
-    if (!meta.extensions[PLUGIN_ID]) {
-      meta.extensions[PLUGIN_ID] = createEmptyChatData(defaultName);
-    }
-    const d = meta.extensions[PLUGIN_ID];
+  function normalizeDataShape(d, defaultName) {
     const base = createEmptyChatData(defaultName);
-
     if (!Array.isArray(d.profiles) || !d.profiles.length) {
       const migrated = createSingleProfile(defaultName);
       if (d.charMind) Object.assign(migrated, d.charMind);
@@ -217,6 +239,8 @@
     if (typeof d.lastSummarizedFloor !== 'number') d.lastSummarizedFloor = -1;
     d.initiativeGear = d.initiativeGear || 1;
     d.secretGear = d.secretGear || 2;
+    d.actionLock = d.actionLock || 'normal';
+    d.injectMode = d.injectMode || 'silent';
     d.locks = Object.assign(base.locks, d.locks || {});
     d.userNote = Object.assign(base.userNote, d.userNote || {});
     d.secretLedger = Object.assign(base.secretLedger, d.secretLedger || {});
@@ -224,6 +248,29 @@
     d.acts = Array.isArray(d.acts) ? d.acts : [];
     d.history = Array.isArray(d.history) ? d.history : [];
     return d;
+  }
+
+  function getActiveChatData() {
+    const ctx = getCtx();
+    const defaultName = ctx.name2 || '主控角色';
+    if (!isValidActiveChat()) {
+      return createEmptyChatData(defaultName);
+    }
+    const meta = ctx.chatMetadata || window.chat_metadata;
+    if (!meta) return createEmptyChatData(defaultName);
+    meta.extensions = meta.extensions || {};
+    if (!meta.extensions[PLUGIN_ID]) {
+      meta.extensions[PLUGIN_ID] = createEmptyChatData(defaultName);
+    }
+    return normalizeDataShape(meta.extensions[PLUGIN_ID], defaultName);
+  }
+
+  // 获取当前面板正在操作的数据源（优先返回跨窗编辑目标，否则返回当前活跃聊天数据）
+  function getWorkingData() {
+    if (remoteEditTarget && remoteEditTarget.data) {
+      return normalizeDataShape(remoteEditTarget.data, remoteEditTarget.charName);
+    }
+    return getActiveChatData();
   }
 
   function getCurrentProfile(d) {
@@ -249,23 +296,76 @@
     }));
   }
 
-  function pushHistorySnapshot(reasonLabel) {
-    const d = getChatData();
+  function pushHistorySnapshot(d, reasonLabel) {
+    d.history = Array.isArray(d.history) ? d.history : [];
     d.history.unshift(makeDataSnapshotObject(d, reasonLabel));
     if (d.history.length > 8) d.history.length = 8;
   }
 
-  function saveChatData() {
+  // ★ 安全异步落盘聊天（严格等待写盘完成，欢迎页直接熔断跳过，绝不冲掉聊天文件！）
+  async function safeSaveChatAsync() {
+    if (!isValidActiveChat()) return false;
     const ctx = getCtx();
-    const d = getChatData();
+    try {
+      if (typeof ctx.saveChat === 'function') {
+        await ctx.saveChat();
+      } else if (typeof window.saveChatConditional === 'function') {
+        await window.saveChatConditional();
+      } else if (typeof window.saveChat === 'function') {
+        await window.saveChat();
+      }
+    } catch (e) {
+      console.warn('[HeartEcho] saveChat error:', e);
+    }
+    try { await ctx.saveMetadata?.(); } catch (_) {}
+    try { window.saveMetadataDebounced?.(); } catch (_) {}
+    return true;
+  }
+
+  async function saveWorkingData() {
+    const d = getWorkingData();
     d.updatedAt = Date.now();
+
+    // 情况 A：正处于书架「跨窗免加载编辑」模式 -> 直接写回书架并打上待同步标记
+    if (remoteEditTarget) {
+      const shelf = loadShelf();
+      const { charName, chatId } = remoteEditTarget;
+      shelf[charName] = shelf[charName] || {};
+      const firstProf = d.profiles?.[0] || {};
+      shelf[charName][chatId] = {
+        chatId,
+        charName,
+        pendingSync: true, // 下次在酒馆打开该聊天窗口时自动同步写入 chatMetadata
+        updatedAt: new Date().toLocaleString(),
+        updatedTs: d.updatedAt,
+        lastFloor: d.lastSummarizedFloor,
+        innerVoice: firstProf.innerVoice || '',
+        sceneBridge: d.snapshot?.sceneBridge || '',
+        actsCount: (d.acts || []).length,
+        fullText: buildFormattedPromptBlock(d, false),
+        structured: JSON.parse(JSON.stringify(d))
+      };
+      localStorage.setItem(STORAGE_SHELF_KEY, JSON.stringify(shelf));
+      // 如果碰巧这个窗口就是当前酒馆正开着的窗口，顺手同步内存
+      const ctx = getCtx();
+      if (isValidActiveChat() && ctx.chatId === chatId) {
+        ctx.chatMetadata.extensions[PLUGIN_ID] = JSON.parse(JSON.stringify(d));
+        shelf[charName][chatId].pendingSync = false;
+        localStorage.setItem(STORAGE_SHELF_KEY, JSON.stringify(shelf));
+        await safeSaveChatAsync();
+      }
+      return true;
+    }
+
+    // 情况 B：正常编辑当前聊天窗口
+    if (!isValidActiveChat()) {
+      setStatus('当前处于酒馆欢迎页（未打开具体角色聊天），无法保存聊天数据！请先点进角色聊天窗口', true);
+      return false;
+    }
     syncToCharacterShelf(d);
-    try { ctx.saveChat?.(); } catch (e) {}
-    try { window.saveChatConditional?.(); } catch (e) {}
-    try { window.saveChat?.(); } catch (e) {}
-    try { ctx.saveMetadata?.(); } catch (e) {}
-    try { window.saveMetadataDebounced?.(); } catch (e) {}
-    try { window.insertOrAssignVariables?.({ [PLUGIN_ID]: d }, { type: 'chat' }); } catch (e) {}
+    try { window.insertOrAssignVariables?.({ [PLUGIN_ID]: d }, { type: 'chat' }); } catch (_) {}
+    await safeSaveChatAsync();
+    return true;
   }
 
   function loadShelf() {
@@ -278,10 +378,13 @@
   }
 
   function syncToCharacterShelf(chatData) {
+    if (!isValidActiveChat()) return;
     try {
       const ctx = getCtx();
       const charName = ctx.name2 || (chatData.profiles?.[0]?.name) || '未知角色';
-      const chatId = ctx.chatId || ('chat_default');
+      const chatId = ctx.chatId;
+      if (!chatId) return;
+
       const oldShelf = loadShelf();
       const oldCount = Object.keys(oldShelf).length;
       const firstProf = chatData.profiles?.[0] || {};
@@ -290,23 +393,15 @@
       oldShelf[charName][chatId] = {
         chatId,
         charName,
+        pendingSync: false,
         updatedAt: new Date().toLocaleString(),
+        updatedTs: Date.now(),
         lastFloor: chatData.lastSummarizedFloor,
         innerVoice: firstProf.innerVoice || '',
         sceneBridge: chatData.snapshot?.sceneBridge || '',
         actsCount: (chatData.acts || []).length,
         fullText: buildFormattedPromptBlock(chatData, false),
-        structured: JSON.parse(JSON.stringify({
-          profiles: chatData.profiles,
-          userNote: chatData.userNote,
-          secretLedger: chatData.secretLedger,
-          acts: chatData.acts,
-          snapshot: chatData.snapshot,
-          npcs: chatData.npcs,
-          initiativeGear: chatData.initiativeGear,
-          secretGear: chatData.secretGear,
-          actionLock: chatData.actionLock
-        }))
+        structured: JSON.parse(JSON.stringify(chatData))
       };
 
       const newCount = Object.keys(oldShelf).length;
@@ -319,8 +414,46 @@
     }
   }
 
+  // 当切换进入某个聊天窗口时，检查之前是否在书架里跨窗改过它的存档，若有则自动无感同步进来
+  async function checkAndApplyPendingShelfSync() {
+    if (!isValidActiveChat()) return;
+    try {
+      const ctx = getCtx();
+      const charName = ctx.name2;
+      const chatId = ctx.chatId;
+      const shelf = loadShelf();
+      const item = shelf?.[charName]?.[chatId];
+      if (item && item.pendingSync && item.structured) {
+        ctx.chatMetadata = ctx.chatMetadata || {};
+        ctx.chatMetadata.extensions = ctx.chatMetadata.extensions || {};
+        ctx.chatMetadata.extensions[PLUGIN_ID] = normalizeDataShape(JSON.parse(JSON.stringify(item.structured)), charName);
+        item.pendingSync = false;
+        localStorage.setItem(STORAGE_SHELF_KEY, JSON.stringify(shelf));
+        await safeSaveChatAsync();
+      }
+    } catch (e) {
+      console.warn('[HeartEcho] checkAndApplyPendingShelfSync warning:', e);
+    }
+  }
+
+  // 改动楼层前做本地紧急快照保护
+  function saveEmergencyFloorBackup(actionLabel) {
+    try {
+      const ctx = getCtx();
+      if (!isValidActiveChat()) return;
+      const tail = ctx.chat.slice(-15);
+      localStorage.setItem(STORAGE_EMERGENCY_KEY, JSON.stringify({
+        time: new Date().toLocaleString(),
+        chatId: ctx.chatId,
+        action: actionLabel,
+        totalFloors: ctx.chat.length,
+        tailSample: tail
+      }));
+    } catch (_) {}
+  }
+
   // =========================================================================
-  // 四、组装投喂文本 & 扫描聊天楼层挂载位置
+  // 四、组装投喂文本 & 安全扫描/局部更新聊天 DOM（彻底告别 reloadCurrentChat）
   // =========================================================================
   const INITIATIVE_INSTRUCTIONS = {
     1: '【关系推进档位：1档·顺其自然】按当前人设与情感张力自然互动，不强行加速关系定性。',
@@ -398,15 +531,14 @@
     return forFloorDetails ? lines.join('<br>\n') : lines.join('\n');
   }
 
-  // 查找当前聊天中所有挂载了心语回响标记的楼层号
   function findMountedSummaryFloors() {
+    if (!isValidActiveChat()) return [];
     const chat = getCtx().chat || [];
     const indices = [];
     for (let i = 0; i < chat.length; i++) {
       const m = chat[i];
       if (!m) continue;
-      const txt = String(m.mes || m.content || '');
-      if (txt.includes(FLOOR_MARK)) indices.push(i);
+      if (String(m.mes || m.content || '').includes(FLOOR_MARK)) indices.push(i);
     }
     return indices;
   }
@@ -416,14 +548,39 @@
     return chatArr.some(m => m && !m.is_system && String(m.mes || m.content || '').includes(FLOOR_MARK));
   }
 
+  // 局部刷新单楼层 DOM 显示（不触发整页重载）
+  function syncSingleFloorDomText(floorIdx, htmlContent) {
+    try {
+      const ctx = getCtx();
+      const mesEl = document.querySelector(`#chat .mes[mesid="${floorIdx}"] .mes_text`);
+      if (mesEl) {
+        mesEl.innerHTML = typeof ctx.messageFormatting === 'function'
+          ? ctx.messageFormatting(htmlContent, PLUGIN_NAME, false, false, floorIdx)
+          : htmlContent;
+      }
+    } catch (_) {}
+  }
+
+  // 局部精准删除单楼层 DOM 并重排后续 mesid（零整页重载，100% 保护后续楼层）
+  function removeSingleFloorDom(floorIdx) {
+    try {
+      const target = document.querySelector(`#chat .mes[mesid="${floorIdx}"]`);
+      if (target) target.remove();
+      document.querySelectorAll('#chat .mes[mesid]').forEach(el => {
+        const id = parseInt(el.getAttribute('mesid'), 10);
+        if (!isNaN(id) && id > floorIdx) {
+          el.setAttribute('mesid', String(id - 1));
+        }
+      });
+    } catch (_) {}
+  }
+
   // =========================================================================
-  // 五、酒馆原生世界书（World Info）读取与直接塞入/更新接口
+  // 五、世界书读取与直接塞入接口
   // =========================================================================
   function getStHeaders() {
     const ctx = getCtx();
-    if (typeof ctx.getRequestHeaders === 'function') {
-      return ctx.getRequestHeaders();
-    }
+    if (typeof ctx.getRequestHeaders === 'function') return ctx.getRequestHeaders();
     const headers = { 'Content-Type': 'application/json' };
     if (window.token) headers['X-CSRF-Token'] = window.token;
     return headers;
@@ -431,15 +588,11 @@
 
   async function fetchAvailableWorldBooks() {
     const names = new Set();
-    // 1. 从全局变量或 DOM 选择器提取
-    if (Array.isArray(window.world_names)) {
-      window.world_names.forEach(n => n && names.add(n));
-    }
+    if (Array.isArray(window.world_names)) window.world_names.forEach(n => n && names.add(n));
     document.querySelectorAll('#world_editor_select option, #character_world option').forEach(opt => {
       const v = (opt.textContent || opt.value || '').trim();
       if (v && v !== 'None' && !v.includes('---') && !v.includes('选择')) names.add(v);
     });
-    // 2. 尝试酒馆后端 /api/settings/get 兜底
     if (!names.size) {
       try {
         const res = await fetch('/api/settings/get', { method: 'POST', headers: getStHeaders(), body: '{}' });
@@ -520,7 +673,6 @@
       if (!resSave.ok) throw new Error('写入世界书失败 HTTP ' + resSave.status);
       return true;
     } catch (e) {
-      console.warn('[HeartEcho] injectIntoExistingWorldBook error:', e);
       setStatus('写入已有世界书失败：' + e.message, true);
       return false;
     }
@@ -549,10 +701,7 @@
     a.download = `心语回响_${charName || '记忆书'}_${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(a.href);
-      a.remove();
-    }, 300);
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 300);
   }
 
   // =========================================================================
@@ -564,7 +713,7 @@
     const model = String(globalSettings.model || '').trim();
 
     if (!base || !key || !model) {
-      setStatus('请先在【设置与预设】页配置 API 地址、密钥与模型名', true);
+      setStatus('请先在【设置与预设】页填写 API 地址、密钥与模型名', true);
       return null;
     }
 
@@ -615,6 +764,7 @@
   }
 
   function extractChatSliceText(startFloor, endFloor, skipSpec) {
+    if (!isValidActiveChat()) return { text: '', count: 0, actualStart: 0, actualEnd: 0 };
     const ctx = getCtx();
     const chat = ctx.chat || [];
     if (!chat.length) return { text: '', count: 0, actualStart: 0, actualEnd: 0 };
@@ -660,13 +810,13 @@
         return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
       }
       return JSON.parse(cleaned);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
   // =========================================================================
-  // 七、内置通用子弹窗系统（单框全屏精修 / 二次确认 / 时光机 / 塞入世界书）
+  // 七、二级弹窗系统（单框全屏精修 / 二次确认 / 时光机 / 逐条楼层管理 / 世界书）
   // =========================================================================
   function openSubModal(titleHtml, bodyHtml, isFullZoom, onMount) {
     const sm = document.getElementById('he-submodal');
@@ -688,7 +838,7 @@
 
   function openConfirmDialog(title, descHtml, confirmLabel, onConfirm) {
     openSubModal(
-      `<span>请确认操作 · ${escapeHtml(title)}</span>`,
+      `<span>请确认 · ${escapeHtml(title)}</span>`,
       `
         <div style="font-size:13px; line-height:1.55; color:var(--he-text);">${descHtml}</div>
         <div class="he-row" style="justify-content:flex-end; margin-top:10px;">
@@ -707,18 +857,17 @@
     );
   }
 
-  // 单文本框全屏精修弹窗（满足问题 1）
   function openFieldZoomEditor(targetEl, labelTitle) {
     if (!targetEl) return;
     openSubModal(
-      `<span>单框全屏精修 · ${escapeHtml(labelTitle || '编辑内容')}</span>`,
+      `<span>单框精修 · ${escapeHtml(labelTitle || '编辑内容')}</span>`,
       `
         <textarea class="he-textarea" id="he-zoom-textarea" style="flex:1; height:100%; min-height:62vh; font-size:14px; line-height:1.6;"></textarea>
         <div class="he-row" style="justify-content:space-between;">
           <span class="he-hint" id="he-zoom-counter">0 字</span>
           <div class="he-row">
-            <button class="he-btn" id="he-zoom-cancel">取消修改</button>
-            <button class="he-btn he-btn-primary" id="he-zoom-save">完成并写回原框</button>
+            <button class="he-btn" id="he-zoom-cancel">取消</button>
+            <button class="he-btn he-btn-primary" id="he-zoom-save">写回并保存</button>
           </div>
         </div>
       `,
@@ -730,22 +879,21 @@
         cnt.textContent = `当前共 ${ta.value.length} 字`;
         ta.addEventListener('input', () => { cnt.textContent = `当前共 ${ta.value.length} 字`; });
         body.querySelector('#he-zoom-cancel')?.addEventListener('click', closeSubModal);
-        body.querySelector('#he-zoom-save')?.addEventListener('click', () => {
+        body.querySelector('#he-zoom-save')?.addEventListener('click', async () => {
           targetEl.value = ta.value;
           closeSubModal();
           collectFormToData();
-          saveChatData();
-          setStatus(`已更新【${labelTitle}】并自动存盘`);
+          await saveWorkingData();
+          setStatus(`已更新【${labelTitle}】`);
         });
         setTimeout(() => ta.focus(), 60);
       }
     );
   }
 
-  // 双向历史版本时光机（满足问题 5：退回旧档也不丢新档）
   function openHistoryModal(d) {
     const listHtml = !d.history.length
-      ? `<div class="he-hint">当前暂无历史快照。每次手动保存、AI总结或合并前都会自动在此生成时光机备份。</div>`
+      ? `<div class="he-hint">当前暂无历史快照。每次手动保存、AI总结或合并前都会自动在此生成备份。</div>`
       : d.history.map((h, idx) => `
           <div class="he-card">
             <div class="he-card-head">
@@ -754,22 +902,21 @@
             </div>
             <div class="he-hint">心声预览：${escapeHtml(h.profiles?.[0]?.innerVoice || '无')}</div>
             <div class="he-row" style="justify-content:flex-end;">
-              <button class="he-btn he-btn-primary" data-restore-idx="${idx}">切换到此版本（自动备份当前手头版本）</button>
+              <button class="he-btn he-btn-primary" data-restore-idx="${idx}">切换到此版本（自动留存当前手头版本）</button>
             </div>
           </div>
         `).join('');
 
     openSubModal(
-      `<span>双向历史版本时光机（新旧版本自由来回切，绝不丢失）</span>`,
+      `<span>双向历史版本时光机</span>`,
       `<div style="display:flex; flex-direction:column; gap:8px;">${listHtml}</div>`,
       false,
       body => {
         body.querySelectorAll('[data-restore-idx]').forEach(btn => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const idx = parseInt(btn.getAttribute('data-restore-idx'), 10);
             const targetSnap = d.history[idx];
             if (!targetSnap) return;
-            // 先把当前手头状态存进历史最前，保证新档绝对不丢！
             collectFormToData();
             const currentBackup = makeDataSnapshotObject(d, '切换历史前自动留存的手头版本');
             d.history.splice(idx, 1);
@@ -786,17 +933,16 @@
             if (targetSnap.secretGear) d.secretGear = targetSnap.secretGear;
             if (targetSnap.actionLock) d.actionLock = targetSnap.actionLock;
 
-            saveChatData();
+            await saveWorkingData();
             closeSubModal();
             renderPanelFromData();
-            setStatus(`已切换至【${targetSnap.time}】版本！原手头版本已存入时光机第 #1 位，随时可切回`);
+            setStatus(`已切换至【${targetSnap.time}】版本！原手头版本已保存在时光机第 #1 位`);
           });
         });
       }
     );
   }
 
-  // 世界书操作中心弹窗（塞入已有世界书 / 导出 JSON / 复制全文）
   async function openWorldBookModal(contentText, charName) {
     const books = await fetchAvailableWorldBooks();
     const boundBook = getCharacterBoundWorldBook();
@@ -805,12 +951,12 @@
       : `<option value="">未检测到已有世界书（请使用下方导出 .json）</option>`;
 
     openSubModal(
-      `<span>世界书同步与导出中心 · ${escapeHtml(charName || '当前对话')}</span>`,
+      `<span>世界书同步与导出 · ${escapeHtml(charName || '当前记忆')}</span>`,
       `
         <div class="he-card">
-          <div class="he-card-head"><span>方式一：直接补充 / 更新塞入酒馆已有世界书（推荐）</span></div>
+          <div class="he-card-head"><span>方式一：补充 / 更新塞入酒馆已有世界书</span></div>
           <div>
-            <div class="he-label"><span>选择目标世界书（已自动识别角色绑定世界书）：</span></div>
+            <div class="he-label"><span>选择目标世界书：</span></div>
             <select class="he-select" id="he-wb-target">${optionsHtml}</select>
           </div>
           <div class="he-grid-2">
@@ -821,7 +967,7 @@
             <div>
               <div class="he-label"><span>触发亮灯方式：</span></div>
               <select class="he-select" id="he-wb-constant">
-                <option value="true">蓝灯常驻（始终激活注入）</option>
+                <option value="true">蓝灯常驻（始终激活）</option>
                 <option value="false">绿灯关键词触发</option>
               </select>
             </div>
@@ -832,15 +978,15 @@
           </div>
           <div class="he-row" style="justify-content:flex-end; margin-top:4px;">
             <button class="he-btn" id="he-wb-append">作为新条目追加塞入</button>
-            <button class="he-btn he-btn-primary" id="he-wb-overwrite">智能覆盖同名[心语回响]条目</button>
+            <button class="he-btn he-btn-primary" id="he-wb-overwrite">覆盖更新同名[心语回响]条目</button>
           </div>
         </div>
 
         <div class="he-card">
-          <div class="he-card-head"><span>方式二：新建下载或纯文本复制</span></div>
+          <div class="he-card-head"><span>方式二：下载新世界书文件或复制文本</span></div>
           <div class="he-row">
-            <button class="he-btn he-btn-primary" id="he-wb-dl-json">下载独立世界书 (.json 文件)</button>
-            <button class="he-btn" id="he-wb-copy-raw">仅复制记忆全文到剪贴板</button>
+            <button class="he-btn he-btn-primary" id="he-wb-dl-json">下载独立世界书 (.json)</button>
+            <button class="he-btn" id="he-wb-copy-raw">复制记忆全文到剪贴板</button>
           </div>
         </div>
       `,
@@ -848,122 +994,155 @@
       body => {
         const runInject = async overwrite => {
           const target = body.querySelector('#he-wb-target')?.value;
-          if (!target) {
-            setStatus('请先选择一个有效的已有世界书', true);
-            return;
-          }
+          if (!target) { setStatus('请先选择一个有效的已有世界书', true); return; }
           const title = body.querySelector('#he-wb-title')?.value || '[心语回响] 记忆档案';
           const isConst = body.querySelector('#he-wb-constant')?.value === 'true';
           const keys = body.querySelector('#he-wb-keys')?.value || '';
           const ok = await injectIntoExistingWorldBook(target, contentText, title, isConst, keys, overwrite);
           if (ok) {
             closeSubModal();
-            setStatus(`成功写入世界书【${target}】！（${overwrite ? '已覆盖更新' : '已新增条目'}）`);
+            setStatus(`成功写入世界书【${target}】！`);
           }
         };
-
         body.querySelector('#he-wb-overwrite')?.addEventListener('click', () => runInject(true));
         body.querySelector('#he-wb-append')?.addEventListener('click', () => runInject(false));
         body.querySelector('#he-wb-dl-json')?.addEventListener('click', () => {
           downloadWorldBookJsonFile(charName, contentText);
           closeSubModal();
-          setStatus('已下载标准世界书 .json 文件，可在酒馆世界书页面直接导入！');
+          setStatus('已下载标准世界书 .json 文件');
         });
         body.querySelector('#he-wb-copy-raw')?.addEventListener('click', async () => {
           await navigator.clipboard?.writeText(contentText);
           closeSubModal();
-          setStatus('已复制记忆全文到剪贴板！');
+          setStatus('已复制记忆全文到剪贴板');
         });
       }
     );
   }
 
-  // 楼层精细管理弹窗（指定插入哪一楼 / 原地刷新旧楼 / 仅单删总结楼不伤后续剧情）
+  // ★ 逐条可视化「楼层挂载与单删管理」弹窗（解答问题 5 + 100% 零重载防丢数据）
   function openFloorManageModal(d) {
+    if (remoteEditTarget) {
+      setStatus('当前处于书架「跨窗口编辑」模式，请先退出跨窗编辑后再操作当前聊天楼层', true);
+      return;
+    }
+    if (!isValidActiveChat()) {
+      setStatus('当前处于酒馆欢迎页（未打开具体角色聊天），已自动拦截楼层操作以保护存档！', true);
+      return;
+    }
+
     const ctx = getCtx();
-    const total = (ctx.chat || []).length;
+    const total = ctx.chat.length;
     const mounted = findMountedSummaryFloors();
-    const mountedDesc = mounted.length
-      ? `当前检测到已挂载总结位于：<b>第 ${mounted.join('、')} 楼</b>`
-      : `当前聊天楼层中<b>尚未挂载</b>心语回响总结块`;
+
+    const mountedRowsHtml = !mounted.length
+      ? `<div class="he-hint">当前聊天窗口中暂无已插入的「心语回响」总结楼层。</div>`
+      : mounted.map(fIdx => {
+          const isHidden = !!ctx.chat[fIdx]?.is_system;
+          return `
+            <div class="he-card" style="padding:8px 10px;">
+              <div class="he-row" style="justify-content:space-between;">
+                <span><b>第 ${fIdx} 楼</b> ${isHidden ? '<small style="color:var(--he-danger);">(已隐藏)</small>' : '<small style="color:var(--he-ok);">(显示中)</small>'}</span>
+                <div class="he-row">
+                  <button class="he-btn he-btn-primary" data-floor-replace="${fIdx}">原地更新第 ${fIdx} 楼内容</button>
+                  <button class="he-btn he-btn-danger" data-floor-del="${fIdx}">${ICONS.trash} 仅单删第 ${fIdx} 楼</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
 
     openSubModal(
-      `<span>聊天楼层挂载与精细单删管理</span>`,
+      `<span>聊天楼层挂载与精细单删管理（共 ${total} 楼）</span>`,
       `
         <div class="he-card">
-          <div class="he-hint">${mountedDesc}（当前聊天共 ${total} 楼，末尾序号为 ${Math.max(0, total - 1)}）</div>
-          ${mounted.length ? `
-            <div class="he-row" style="margin-top:4px;">
-              <button class="he-btn he-btn-primary" id="he-fl-replace">原地刷新第 ${mounted[mounted.length - 1]} 楼内容（推荐：合并/修改后同步）</button>
-              <button class="he-btn he-btn-danger" id="he-fl-del-only">仅单删总结楼层（保留后续所有聊天剧情！）</button>
-            </div>
-          ` : ''}
+          <div class="he-card-head"><span>当前已挂载的总结楼层（可逐条更新或单独删除，绝不伤及后续剧情）</span></div>
+          <div style="display:flex; flex-direction:column; gap:6px;">${mountedRowsHtml}</div>
         </div>
 
         <div class="he-card">
-          <div class="he-card-head"><span>插入为新楼层（可自由指定插在第几楼）</span></div>
-          <div class="he-row">
-            <span class="he-label">插入位置楼层号（留空默认插在最末尾第 ${total} 楼）：</span>
-            <input class="he-input" id="he-fl-target-idx" type="number" placeholder="${total}" style="width:110px;" />
-            <button class="he-btn he-btn-primary" id="he-fl-insert-go">${ICONS.send} 确认插入楼层</button>
+          <div class="he-card-head"><span>插入为新聊天楼层</span></div>
+          <div class="he-hint">默认追加在当前聊天最末尾（第 ${total} 楼），安全写入不刷新整页。</div>
+          <div class="he-row" style="justify-content:flex-end; margin-top:4px;">
+            <button class="he-btn he-btn-primary" id="he-fl-insert-end">${ICONS.send} 确认在末尾（第 ${total} 楼）插入总结块</button>
           </div>
         </div>
       `,
       false,
       body => {
-        // 原地刷新已挂载楼层
-        body.querySelector('#he-fl-replace')?.addEventListener('click', () => {
-          const targetIdx = mounted[mounted.length - 1];
-          if (ctx.chat?.[targetIdx]) {
-            ctx.chat[targetIdx].mes = buildFormattedPromptBlock(d, true);
-            saveChatData();
-            try { ctx.reloadCurrentChat?.(); } catch (_) {}
+        // 逐条原地更新某楼
+        body.querySelectorAll('[data-floor-replace]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const fIdx = parseInt(btn.getAttribute('data-floor-replace'), 10);
+            if (!ctx.chat[fIdx]) return;
+            saveEmergencyFloorBackup('原地更新第' + fIdx + '楼');
+            const newHtml = buildFormattedPromptBlock(d, true);
+            ctx.chat[fIdx].mes = newHtml;
+            syncSingleFloorDomText(fIdx, newHtml);
+            await saveWorkingData();
             closeSubModal();
             renderPanelFromData();
-            setStatus(`已原地将第 ${targetIdx} 楼刷新为最新记忆内容！`);
-          }
+            setStatus(`已安全原地更新第 ${fIdx} 楼总结内容！`);
+          });
         });
 
-        // 仅精准单删总结楼层（从后往前 splice，绝不误删后面的正常楼层！）
-        body.querySelector('#he-fl-del-only')?.addEventListener('click', () => {
-          for (let i = mounted.length - 1; i >= 0; i--) {
-            ctx.chat.splice(mounted[i], 1);
-          }
-          saveChatData();
-          try { ctx.reloadCurrentChat?.(); } catch (_) {}
-          closeSubModal();
-          renderPanelFromData();
-          setStatus(`已精准抽离 ${mounted.length} 个旧总结楼层，后续聊天记录完好无损！`);
+        // 逐条精准单删某楼（带二次确认）
+        body.querySelectorAll('[data-floor-del]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const fIdx = parseInt(btn.getAttribute('data-floor-del'), 10);
+            openConfirmDialog(
+              `仅单删第 ${fIdx} 楼`,
+              `确定只单独抽走 <b>第 ${fIdx} 楼</b> 的总结块吗？（第 ${fIdx} 楼之后的所有聊天剧情将 100% 完好保留！）`,
+              `确认单删第 ${fIdx} 楼`,
+              async () => {
+                if (!ctx.chat[fIdx]) return;
+                saveEmergencyFloorBackup('单删第' + fIdx + '楼');
+                ctx.chat.splice(fIdx, 1);
+                removeSingleFloorDom(fIdx);
+                await saveWorkingData();
+                renderPanelFromData();
+                setStatus(`已精准单删第 ${fIdx} 楼，后续所有剧情楼层完好无损！`);
+              }
+            );
+          });
         });
 
-        // 插入到指定楼层或最末尾
-        body.querySelector('#he-fl-insert-go')?.addEventListener('click', () => {
-          const rawIdx = body.querySelector('#he-fl-target-idx')?.value;
-          const insertAt = rawIdx === '' ? ctx.chat.length : Math.max(0, Math.min(ctx.chat.length, parseInt(rawIdx, 10) || ctx.chat.length));
+        // 安全追加新楼层到末尾（采用标准完整消息结构 + addOneMessage + await saveChat，绝不调用 reloadCurrentChat）
+        body.querySelector('#he-fl-insert-end')?.addEventListener('click', async () => {
+          saveEmergencyFloorBackup('末尾插入新总结楼');
+          const blockHtml = buildFormattedPromptBlock(d, true);
           const msgObj = {
             name: PLUGIN_NAME,
             is_user: false,
             is_system: false,
-            send_date: Date.now(),
-            mes: buildFormattedPromptBlock(d, true)
+            send_date: new Date().toISOString(),
+            mes: blockHtml,
+            extra: { api: 'manual', model: PLUGIN_ID }
           };
-          ctx.chat.splice(insertAt, 0, msgObj);
+          const newIdx = ctx.chat.length;
+          ctx.chat.push(msgObj);
+          try {
+            if (typeof ctx.addOneMessage === 'function') {
+              ctx.addOneMessage(msgObj);
+            }
+          } catch (e) {
+            console.warn('[HeartEcho] addOneMessage fallback:', e);
+          }
           d.injectMode = 'floor';
-          saveChatData();
-          try { ctx.reloadCurrentChat?.(); } catch (_) {}
+          await saveWorkingData();
           closeSubModal();
           renderPanelFromData();
-          setStatus(`已将美化记忆块精准插入至第 ${insertAt} 楼！`);
+          setStatus(`已安全将总结块插入至第 ${newIdx} 楼！`);
         });
       }
     );
   }
 
   // =========================================================================
-  // 八、主界面挂载与渲染
+  // 八、主界面挂载（纯图标单框放大 + 跨窗编辑横幅 + 精简设置标题）
   // =========================================================================
   function zoomBtnHtml(targetId, title) {
-    return `<button type="button" class="he-zoom-link" data-act="zoom-field" data-target="${targetId}" data-title="${escapeHtml(title)}">${ICONS.max} 放大编辑</button>`;
+    return `<button type="button" class="he-zoom-icon-btn" data-act="zoom-field" data-target="${targetId}" data-title="${escapeHtml(title)}" title="放大编辑：${escapeHtml(title)}">${ICONS.max}</button>`;
   }
 
   function mountUI() {
@@ -981,16 +1160,22 @@
             <div class="he-title-wrap">
               ${ICONS.echo}
               <span>心语回响 v${PLUGIN_VERSION}</span>
-              <span class="he-badge" id="he-char-badge">当前对话</span>
+              <span class="he-badge" id="he-char-badge">未选聊天</span>
               <span class="he-badge" id="he-mounted-badge" style="color:var(--he-accent);">未插楼层</span>
             </div>
             <div class="he-header-actions">
               <button class="he-btn" data-act="open-shelf">${ICONS.shelf} 角色书架</button>
               <button class="he-btn" data-act="open-history">${ICONS.undo} 历史时光机</button>
               <button class="he-btn" data-act="cycle-theme" id="he-theme-btn">主题: 跟随</button>
-              <button class="he-btn" data-act="toggle-fullscreen" id="he-fs-btn">${ICONS.max} 面板全屏</button>
+              <button class="he-btn" data-act="toggle-fullscreen" id="he-fs-btn">${ICONS.max} 全屏</button>
               <button class="he-btn" data-act="close-panel" title="关闭">${ICONS.close}</button>
             </div>
+          </div>
+
+          <!-- 跨窗口书架免加载编辑提示横幅 -->
+          <div id="he-remote-banner">
+            <span id="he-remote-banner-text">正在跨窗编辑书架存档</span>
+            <button class="he-btn he-btn-primary" data-act="exit-remote-edit">退出跨窗编辑，返回当前聊天</button>
           </div>
 
           <!-- 固定高度防挤扁页签栏 -->
@@ -1067,7 +1252,6 @@
                 </div>
               </div>
 
-              <!-- 关系主动推进引擎（优化第④档表述，任何时候想让他主动破局都能开） -->
               <div class="he-card">
                 <div class="he-card-head"><span>关系主动推进引擎（治被动暧昧 / 不主动送礼 / 卡瓶颈不表白）</span></div>
                 <div class="he-gear-group" id="he-init-gear-group">
@@ -1078,7 +1262,6 @@
                 </div>
               </div>
 
-              <!-- User 态度备注 + 修复图三图四溢出后的双格防复读机切换按钮 -->
               <div class="he-card">
                 <div class="he-card-head">
                   <span>User 态度备注与防口头复读机锁（自带防读心隔离）</span>
@@ -1155,7 +1338,7 @@
             <div class="he-pane" data-pane="acts">
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>分幕剧情卷宗库（已挂载楼层信息见顶栏，合并后可去【楼层管理】原地刷新）</span>
+                  <span>分幕剧情卷宗库（已挂载楼层信息见顶栏，合并后可去【楼层挂载/单删】原地更新）</span>
                   <div class="he-row">
                     <button class="he-btn" data-act="add-act">${ICONS.plus} 手动添一幕</button>
                     <button class="he-btn he-btn-primary" data-act="merge-selected-acts">${ICONS.spark} 合并勾选幕</button>
@@ -1198,7 +1381,7 @@
               <div class="he-card">
                 <div class="he-card-head">
                   <span>AI 提炼总结范围（旧分幕保留不丢，新剧情追加为新一幕）</span>
-                  <button class="he-btn he-btn-primary" data-act="fill-new-floors" id="he-continue-btn">一键填入上次之后的新增楼层</button>
+                  <button class="he-btn he-btn-primary" data-act="fill-new-floors">一键填入上次之后的新增楼层</button>
                 </div>
                 <div class="he-hint" id="he-last-sum-hint">上次总结截止记录：暂无</div>
                 <div class="he-grid-2">
@@ -1228,9 +1411,8 @@
                 </div>
               </div>
 
-              <!-- 自由隐藏/恢复楼层（带二次确认） -->
               <div class="he-card">
-                <div class="he-card-head"><span>自由隐藏 / 恢复显示聊天楼层（点按钮后会先弹窗确认）</span></div>
+                <div class="he-card-head"><span>自由隐藏 / 恢复显示聊天楼层（点按钮后会先弹窗确认，零重载秒生效）</span></div>
                 <div class="he-row">
                   <span class="he-label">从第</span>
                   <input class="he-input" id="he-hide-start" value="1" style="width:74px;" />
@@ -1252,26 +1434,27 @@
               </div>
             </div>
 
-            <!-- 三层抽屉式「角色记忆书架」（修复图五） -->
+            <!-- 角色记忆书架（点选角色 -> 点选分支窗口 -> 直接跨窗免加载编辑！） -->
             <div class="he-pane" data-pane="shelf">
               <div class="he-card">
                 <div class="he-card-head">
-                  <span id="he-shelf-breadcrumb">角色记忆总书架 · 第一层：选择角色</span>
-                  <button class="he-btn" data-act="shelf-back" id="he-shelf-back-btn" style="display:none;">${ICONS.back} 返回上一级</button>
+                  <span id="he-shelf-breadcrumb">角色记忆总书架 · 选择角色</span>
+                  <button class="he-btn" data-act="shelf-back" id="he-shelf-back-btn" style="display:none;">${ICONS.back} 返回角色列表</button>
                 </div>
                 <input class="he-input" id="he-shelf-search" placeholder="搜索角色名或聊天分支关键词..." />
                 <div id="he-shelf-list" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;"></div>
               </div>
             </div>
 
-            <!-- 设置：多套 API 预设 + 多套提示词预设 -->
+            <!-- 设置与预设（已按要求删去括号冗余文字，API纯名字展示，默认提示词只读保护） -->
             <div class="he-pane" data-pane="settings">
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>多套独立 API 配置预设（一键切换不同模型与接口）</span>
+                  <span>独立 API 配置预设</span>
                   <div class="he-row">
-                    <select class="he-select" id="he-api-preset-select" style="width:auto; min-width:160px;"></select>
-                    <button class="he-btn he-btn-primary" data-act="save-api-preset">另存为新API预设</button>
+                    <select class="he-select" id="he-api-preset-select" style="width:auto; min-width:140px;"></select>
+                    <button class="he-btn he-btn-primary" data-act="update-api-preset">保存当前预设</button>
+                    <button class="he-btn" data-act="new-api-preset">新建预设</button>
                     <button class="he-btn he-btn-danger" data-act="del-api-preset">${ICONS.trash}</button>
                   </div>
                 </div>
@@ -1294,26 +1477,24 @@
 
               <div class="he-card">
                 <div class="he-card-head">
-                  <span>多套总结提示词预设库（支持自由新建保存与切换）</span>
+                  <span>总结提示词预设库</span>
                   <div class="he-row">
-                    <select class="he-select" id="he-prompt-preset-select" style="width:auto; min-width:180px;"></select>
-                    <button class="he-btn he-btn-primary" data-act="save-prompt-preset">另存为新提示词预设</button>
+                    <select class="he-select" id="he-prompt-preset-select" style="width:auto; min-width:170px;"></select>
+                    <button class="he-btn he-btn-primary" data-act="update-prompt-preset">保存当前预设</button>
+                    <button class="he-btn" data-act="copy-prompt-preset">复制新建副本</button>
                     <button class="he-btn he-btn-danger" data-act="del-prompt-preset">${ICONS.trash}</button>
                   </div>
                 </div>
                 <div>
                   <div class="he-label">
-                    <span>当前生效的系统总结提示词内容：</span>
-                    <div class="he-row">
-                      ${zoomBtnHtml('he-set-prompt', '系统总结提示词')}
-                      <button class="he-btn" data-act="reset-prompt">恢复内置默认</button>
-                    </div>
+                    <span id="he-prompt-readonly-tip">系统总结提示词内容</span>
+                    ${zoomBtnHtml('he-set-prompt', '系统总结提示词')}
                   </div>
                   <textarea class="he-textarea" id="he-set-prompt" style="min-height:130px;"></textarea>
                 </div>
                 <div class="he-row">
-                  <span class="he-label">定时提醒楼层间隔（填0纯手动）：</span>
-                  <input class="he-input" type="number" id="he-set-autoInterval" style="width:100px;" />
+                  <span class="he-label">定时提醒楼层间隔：</span>
+                  <input class="he-input" type="number" id="he-set-autoInterval" placeholder="0" style="width:100px;" />
                 </div>
               </div>
             </div>
@@ -1339,7 +1520,7 @@
         </div>
       </div>
 
-      <!-- 通用二级弹窗容器 -->
+      <!-- 通用二级弹窗 -->
       <div id="he-submodal">
         <div class="he-submodal-box" id="he-submodal-box">
           <div class="he-header">
@@ -1449,7 +1630,8 @@
     el.style.color = isWarn ? 'var(--he-danger)' : 'var(--he-muted)';
   }
 
-  function openPanel() {
+  async function openPanel() {
+    await checkAndApplyPendingShelfSync();
     renderPanelFromData();
     document.getElementById('he-backdrop')?.classList.add('he-open');
   }
@@ -1463,40 +1645,67 @@
     document.getElementById('he-backdrop')?.classList.toggle('he-fullscreen', isFullscreen);
     document.getElementById('he-panel')?.classList.toggle('he-fullscreen', isFullscreen);
     const btn = document.getElementById('he-fs-btn');
-    if (btn) btn.innerHTML = isFullscreen ? `${ICONS.min} 还原窗口` : `${ICONS.max} 面板全屏`;
+    if (btn) btn.innerHTML = isFullscreen ? `${ICONS.min} 还原` : `${ICONS.max} 全屏`;
   }
 
   // =========================================================================
-  // 九、面板数据渲染与三层角色记忆书架渲染
+  // 九、面板数据渲染与「角色书架 -> 分支窗口 -> 直接跨窗免加载编辑」
   // =========================================================================
   function renderPanelFromData() {
     const ctx = getCtx();
-    const d = getChatData();
+    const validChat = isValidActiveChat();
+    const d = getWorkingData();
     const prof = getCurrentProfile(d);
-    const totalFloors = (ctx.chat || []).length;
+    const totalFloors = validChat ? (ctx.chat || []).length : 0;
     const mountedFloors = findMountedSummaryFloors();
 
+    // 跨窗编辑横幅状态
+    const remoteBanner = document.getElementById('he-remote-banner');
+    const remoteText = document.getElementById('he-remote-banner-text');
+    if (remoteBanner && remoteText) {
+      if (remoteEditTarget) {
+        remoteBanner.style.display = 'flex';
+        remoteText.textContent = `正在跨窗编辑书架存档：【${remoteEditTarget.charName} · ${remoteEditTarget.chatId}】（免加载直接改，点右下角保存即写回书架）`;
+      } else {
+        remoteBanner.style.display = 'none';
+      }
+    }
+
     const charBadge = document.getElementById('he-char-badge');
-    if (charBadge) charBadge.textContent = `${ctx.name2 || '当前对话'} (共${totalFloors}楼)`;
+    if (charBadge) {
+      if (remoteEditTarget) {
+        charBadge.textContent = `跨窗编辑: ${remoteEditTarget.charName}`;
+      } else if (validChat) {
+        charBadge.textContent = `${ctx.name2 || '当前角色'} (共${totalFloors}楼)`;
+      } else {
+        charBadge.textContent = '欢迎页 (未进聊天)';
+      }
+    }
 
     const mountedBadge = document.getElementById('he-mounted-badge');
     if (mountedBadge) {
-      mountedBadge.textContent = mountedFloors.length ? `已插在第 ${mountedFloors.join(',')} 楼` : '未插楼层';
+      mountedBadge.textContent = remoteEditTarget
+        ? '书架跨窗模式'
+        : (mountedFloors.length ? `已插在第 ${mountedFloors.join(',')} 楼` : '未插楼层');
     }
 
     const lastHint = document.getElementById('he-last-sum-hint');
     if (lastHint) {
-      lastHint.textContent = d.lastSummarizedFloor >= 0
-        ? `上次已总结至第 ${d.lastSummarizedFloor} 楼（当前最新为第 ${Math.max(0, totalFloors - 1)} 楼，点右上方按钮可自动续接第 ${d.lastSummarizedFloor + 1} 楼起的新剧情）`
-        : `当前窗口尚未执行过总结（默认从第 0 楼提炼至最新第 ${Math.max(0, totalFloors - 1)} 楼）`;
+      lastHint.textContent = !validChat
+        ? '提示：当前处于欢迎页，请先进入具体角色的聊天窗口后再执行总结或楼层操作（你仍可打开右上角「角色书架」跨窗编辑任意存档）。'
+        : (d.lastSummarizedFloor >= 0
+          ? `上次已总结至第 ${d.lastSummarizedFloor} 楼（当前最新第 ${Math.max(0, totalFloors - 1)} 楼）`
+          : `当前窗口尚未执行过总结（共 ${totalFloors} 楼）`);
     }
 
     const floorHint = document.getElementById('he-floor-count-hint');
     if (floorHint) {
       const suggestEnd = Math.max(1, totalFloors - 12);
-      floorHint.textContent = `当前共 ${totalFloors} 楼。从第 1 楼开始隐藏可保留第 0 楼开场白文风。`;
+      floorHint.textContent = validChat
+        ? `当前共 ${totalFloors} 楼。从第 1 楼开始隐藏即可保留第 0 楼开场白文风。`
+        : `未进入角色聊天窗口，楼层隐藏已锁定保护。`;
       const hideEndEl = document.getElementById('he-hide-end');
-      if (hideEndEl && !hideEndEl.value && totalFloors > 12) hideEndEl.value = String(suggestEnd);
+      if (validChat && hideEndEl && !hideEndEl.value && totalFloors > 12) hideEndEl.value = String(suggestEnd);
     }
 
     renderCharSubtabs(d);
@@ -1539,19 +1748,32 @@
     setVal('he-set-apiKey', globalSettings.apiKey);
     setVal('he-set-model', globalSettings.model);
     setVal('he-set-autoInterval', globalSettings.autoInterval);
-    setVal('he-set-prompt', globalSettings.customPrompt);
 
-    // 渲染多套 API 预设下拉框
+    // 渲染 API 预设下拉框（严格只显示预设名称，不带模型后缀！）
     const apiSel = document.getElementById('he-api-preset-select');
     if (apiSel) {
-      apiSel.innerHTML = `<option value="">-- 选择已存 API 预设 --</option>` +
-        globalSettings.apiPresets.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === globalSettings.activeApiPresetId ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(p.model)})</option>`).join('');
+      apiSel.innerHTML = `<option value="">-- 选择 API 预设 --</option>` +
+        globalSettings.apiPresets.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === globalSettings.activeApiPresetId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
     }
 
-    // 渲染多套提示词预设下拉框
+    // 渲染提示词预设下拉框（内置默认只读 + 用户自定义）
+    const allPrompts = getAllPromptPresets();
+    const curPrm = allPrompts.find(p => p.id === globalSettings.activePromptId) || BUILTIN_PROMPTS[0];
     const prmSel = document.getElementById('he-prompt-preset-select');
     if (prmSel) {
-      prmSel.innerHTML = globalSettings.promptPresets.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === globalSettings.activePromptId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+      prmSel.innerHTML = allPrompts.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === curPrm.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+    }
+    const prmTextarea = document.getElementById('he-set-prompt');
+    const prmTip = document.getElementById('he-prompt-readonly-tip');
+    if (prmTextarea) {
+      prmTextarea.value = curPrm.builtin ? curPrm.content : (globalSettings.customPrompt || curPrm.content);
+      prmTextarea.readOnly = !!curPrm.builtin;
+      prmTextarea.style.opacity = curPrm.builtin ? '0.82' : '1';
+    }
+    if (prmTip) {
+      prmTip.textContent = curPrm.builtin
+        ? '当前为内置默认提示词（只读保护，点右上方「复制新建副本」即可自由修改保存）'
+        : `正在编辑自定义提示词：${curPrm.name}`;
     }
 
     ['userNote', 'hardFacts'].forEach(k => {
@@ -1581,8 +1803,8 @@
     if (!bar) return;
     const pills = d.profiles.map((p, idx) => {
       const active = idx === d.activeCharIdx ? 'he-active' : '';
-      const dot = p.present !== false ? '●' : '○';
-      return `<button class="he-char-pill ${active}" data-act="select-prof" data-idx="${idx}">${dot} ${escapeHtml(p.name || ('角色' + (idx + 1)))}</button>`;
+      const dotCls = p.present !== false ? 'on' : 'off';
+      return `<button class="he-char-pill ${active}" data-act="select-prof" data-idx="${idx}"><span class="he-dot ${dotCls}"></span>${escapeHtml(p.name || ('角色' + (idx + 1)))}</button>`;
     }).join('');
     bar.innerHTML = `<span class="he-label" style="margin:0;">角色卡：</span>${pills}<button class="he-btn" data-act="add-prof">${ICONS.plus} 添加角色</button>`;
   }
@@ -1590,9 +1812,6 @@
   function renderActsList(d) {
     const wrap = document.getElementById('he-acts-list');
     if (!wrap) return;
-    const mounted = findMountedSummaryFloors();
-    const mountTag = mounted.length ? `（已同步挂载于第 ${mounted.join(',')} 楼）` : '';
-
     if (!d.acts.length) {
       wrap.innerHTML = `<div class="he-hint">暂无分幕卷宗，可点击底栏「提炼总结」自动生成，或点右上方「手动添一幕」。</div>`;
       return;
@@ -1602,11 +1821,11 @@
         <div class="he-row" style="justify-content:space-between;">
           <label class="he-row" style="cursor:pointer; font-size:13px; font-weight:600; color:var(--he-accent);">
             <input type="checkbox" class="he-act-check" data-idx="${idx}" ${act.checked ? 'checked' : ''} />
-            <span>第 ${idx + 1} 幕 ${escapeHtml(mountTag)}</span>
+            <span>第 ${idx + 1} 幕</span>
           </label>
-          <input class="he-input he-act-title" data-idx="${idx}" value="${escapeHtml(act.title || '')}" placeholder="本幕标题 / 时间跨度" style="flex:1; max-width:300px;" />
+          <input class="he-input he-act-title" data-idx="${idx}" value="${escapeHtml(act.title || '')}" placeholder="本幕标题 / 时间跨度" style="flex:1; max-width:320px;" />
           <div class="he-row">
-            <button type="button" class="he-zoom-link" data-act="zoom-act" data-idx="${idx}">${ICONS.max} 放大编辑</button>
+            <button type="button" class="he-zoom-icon-btn" data-act="zoom-act" data-idx="${idx}" title="放大编辑第 ${idx + 1} 幕">${ICONS.max}</button>
             <button class="he-btn he-btn-danger" data-act="delete-act" data-idx="${idx}">${ICONS.trash}</button>
           </div>
         </div>
@@ -1615,22 +1834,19 @@
     `).join('');
   }
 
-  // 三层抽屉式「角色记忆书架」渲染（修复图五：角色 -> 分支窗口 -> 完整分段详情阅读）
+  // 书架两步直达跨窗口免加载编辑（选角色 -> 选分支窗口 -> 直接进入编辑面板！）
   function renderShelfView() {
     const wrap = document.getElementById('he-shelf-list');
     const crumb = document.getElementById('he-shelf-breadcrumb');
     const backBtn = document.getElementById('he-shelf-back-btn');
-    const searchInput = document.getElementById('he-shelf-search');
     if (!wrap) return;
 
-    const query = (searchInput?.value || '').trim().toLowerCase();
+    const query = (document.getElementById('he-shelf-search')?.value || '').trim().toLowerCase();
     const shelf = loadShelf();
 
-    // 第一层：展示所有已存档的角色卡片
     if (shelfNav.level === 1) {
-      if (crumb) crumb.textContent = '角色记忆总书架 · 第一层：点选角色';
+      if (crumb) crumb.textContent = '角色记忆总书架 · 点选角色查看各聊天窗口存档';
       if (backBtn) backBtn.style.display = 'none';
-      if (searchInput) searchInput.style.display = 'block';
 
       const charNames = Object.keys(shelf).filter(cName => {
         if (!query) return true;
@@ -1639,7 +1855,7 @@
       });
 
       if (!charNames.length) {
-        wrap.innerHTML = `<div class="he-hint">暂无角色存档记录。在任意聊天点一次「保存改动」后会自动收录进此书架。</div>`;
+        wrap.innerHTML = `<div class="he-hint">暂无角色存档。在具体角色聊天中点一次「保存改动」后会自动收录进书架。</div>`;
         return;
       }
 
@@ -1650,21 +1866,19 @@
           <div class="he-card he-shelf-card-click" data-act="shelf-open-char" data-char="${escapeHtml(cName)}">
             <div class="he-card-head">
               <span>${escapeHtml(cName)}</span>
-              <span class="he-badge">共 ${branchList.length} 个聊天/分支窗口 · 点击进入</span>
+              <span class="he-badge">共 ${branchList.length} 个聊天/分支存档 →</span>
             </div>
-            <div class="he-hint">最近更新：${escapeHtml(latest.updatedAt || '')} | 最新切口：${escapeHtml((latest.sceneBridge || '暂无').slice(0, 60))}</div>
+            <div class="he-hint">最近更新：${escapeHtml(latest.updatedAt || '')}</div>
           </div>
         `;
       }).join('');
       return;
     }
 
-    // 第二层：展示选中角色名下的所有分支聊天窗口
     if (shelfNav.level === 2) {
       const cName = shelfNav.charName;
-      if (crumb) crumb.textContent = `书架 · ${cName} · 第二层：点选聊天窗口/平行分支`;
+      if (crumb) crumb.textContent = `书架 · ${cName} · 选择分支窗口直接跨窗编辑（免切换酒馆聊天）`;
       if (backBtn) backBtn.style.display = 'inline-flex';
-      if (searchInput) searchInput.style.display = 'block';
 
       const branches = Object.values(shelf[cName] || {}).filter(b => {
         if (!query) return true;
@@ -1672,78 +1886,31 @@
       });
 
       if (!branches.length) {
-        wrap.innerHTML = `<div class="he-hint">该角色下暂无匹配的分支记录。</div>`;
+        wrap.innerHTML = `<div class="he-hint">该角色下暂无匹配的窗口存档。</div>`;
         return;
       }
 
       wrap.innerHTML = branches.map(item => `
-        <div class="he-card he-shelf-card-click" data-act="shelf-open-branch" data-char="${escapeHtml(cName)}" data-chat="${escapeHtml(item.chatId)}">
+        <div class="he-card">
           <div class="he-card-head">
             <span>窗口/分支：${escapeHtml(item.chatId)}</span>
             <span class="he-badge">共 ${item.actsCount || 0} 幕 · ${escapeHtml(item.updatedAt || '')}</span>
           </div>
-          <div class="he-hint">心声：「${escapeHtml(item.innerVoice || '暂无')}」</div>
-          <div class="he-hint">切口：${escapeHtml(item.sceneBridge || '暂无')}</div>
-          <div class="he-row" style="justify-content:flex-end;">
-            <span class="he-badge" style="color:var(--he-accent);">点击查看该分支全部记忆详情 →</span>
+          <div class="he-hint">心声摘要：「${escapeHtml((item.innerVoice || '暂无').slice(0, 65))}」</div>
+          <div class="he-row" style="justify-content:space-between; margin-top:4px;">
+            <div class="he-row">
+              <button class="he-btn he-btn-primary" data-act="shelf-edit-branch" data-char="${escapeHtml(cName)}" data-chat="${escapeHtml(item.chatId)}">${ICONS.edit} 跨窗直接编辑此分支记忆</button>
+              <button class="he-btn" data-act="shelf-to-wb" data-char="${escapeHtml(cName)}" data-chat="${escapeHtml(item.chatId)}">${ICONS.book} 塞入/导出世界书</button>
+            </div>
+            <button class="he-btn he-btn-danger" data-act="shelf-del-branch" data-char="${escapeHtml(cName)}" data-chat="${escapeHtml(item.chatId)}">${ICONS.trash}</button>
           </div>
         </div>
       `).join('');
-      return;
-    }
-
-    // 第三层：完整分段阅读该分支的所有记忆详情 + 操作按钮
-    if (shelfNav.level === 3) {
-      const item = shelf?.[shelfNav.charName]?.[shelfNav.chatId];
-      if (!item) {
-        shelfNav.level = 2;
-        renderShelfView();
-        return;
-      }
-      if (crumb) crumb.textContent = `${shelfNav.charName} > ${shelfNav.chatId} · 完整记忆档案详情`;
-      if (backBtn) backBtn.style.display = 'inline-flex';
-      if (searchInput) searchInput.style.display = 'none';
-
-      const st = item.structured;
-      let detailHtml = '';
-      if (st) {
-        const profsHtml = (st.profiles || []).map(p => `
-          <div class="he-read-block"><b>【${escapeHtml(p.name)}】</b>\n• 潜台词心声：「${escapeHtml(p.innerVoice || '无')}」\n• 当下心境：${escapeHtml(p.selfBase || '无')}\n• 表层认知：${escapeHtml(p.surfaceView || '无')}\n• 潜意识双标：${escapeHtml(p.subconscious || '无')}\n• 核心触动锚点：\n${escapeHtml(p.anchors || '无')}</div>
-        `).join('');
-
-        const actsHtml = (st.acts || []).length
-          ? st.acts.map((a, i) => `<div class="he-read-block"><b>第 ${i + 1} 幕 · ${escapeHtml(a.title || '')}</b>\n${escapeHtml(a.summary || '')}</div>`).join('')
-          : `<div class="he-hint">暂无分幕卷宗</div>`;
-
-        detailHtml = `
-          <div class="he-label"><span>一、角色心智档案</span></div>
-          ${profsHtml}
-          <div class="he-label"><span>二、暗线底牌与防吃书铁律</span></div>
-          <div class="he-read-block">• 真相/暗线：${escapeHtml(st.secretLedger?.truthAndMask || '无')}\n• 已掌握线索：${escapeHtml(st.secretLedger?.charClues || '无')}\n• 防吃书黑名单：${escapeHtml(st.secretLedger?.hardFacts || '无')}</div>
-          <div class="he-label"><span>三、分幕剧情卷宗（共 ${(st.acts || []).length} 幕）</span></div>
-          ${actsHtml}
-          <div class="he-label"><span>四、切口快照与人物名册</span></div>
-          <div class="he-read-block">• 切口场景：${escapeHtml(st.snapshot?.sceneBridge || '无')}\n• 衣着身体：${escapeHtml(st.snapshot?.attireAndBody || '无')}\n• 道具待办：${escapeHtml(st.snapshot?.itemsAndTodos || '无')}\n• 登场人物：${escapeHtml(st.npcs || '无')}</div>
-        `;
-      } else {
-        detailHtml = `<div class="he-read-block">${escapeHtml(item.fullText || '')}</div>`;
-      }
-
-      wrap.innerHTML = `
-        <div class="he-row" style="justify-content:space-between; margin-bottom:4px;">
-          <div class="he-row">
-            <button class="he-btn he-btn-primary" data-act="shelf-to-wb">${ICONS.book} 塞入/导出世界书</button>
-            <button class="he-btn" data-act="shelf-import-here">导入覆盖到当前正在聊的窗口</button>
-          </div>
-          <button class="he-btn he-btn-danger" data-act="shelf-del-branch">${ICONS.trash} 从书架删除此存档</button>
-        </div>
-        ${detailHtml}
-      `;
     }
   }
 
   function collectFormToData() {
-    const d = getChatData();
+    const d = getWorkingData();
     const prof = getCurrentProfile(d);
     const val = id => document.getElementById(id)?.value ?? '';
 
@@ -1786,7 +1953,12 @@
     globalSettings.apiKey = val('he-set-apiKey');
     globalSettings.model = val('he-set-model');
     globalSettings.autoInterval = parseInt(val('he-set-autoInterval'), 10) || 0;
-    globalSettings.customPrompt = val('he-set-prompt') || BUILTIN_PROMPTS[0].content;
+
+    // 只有当前选中的是非内置默认提示词时，才同步修改提示词内容
+    const curBuiltin = getBuiltinById(globalSettings.activePromptId);
+    if (!curBuiltin) {
+      globalSettings.customPrompt = val('he-set-prompt') || BUILTIN_PROMPTS[0].content;
+    }
   }
 
   function escapeHtml(str) {
@@ -1798,13 +1970,13 @@
   }
 
   // =========================================================================
-  // 十、全局交互绑定（含二次确认防误触、API/提示词多预设切换、书架三层点击）
+  // 十、全局事件绑定
   // =========================================================================
   function bindEvents() {
     const root = document.getElementById('he-root');
     if (!root) return;
 
-    // 1. 悬浮球拖拽 + 左右边缘自动贴边半隐藏
+    // 1. 悬浮球拖拽 + 贴边半隐藏
     const fab = document.getElementById('he-fab');
     let startX = 0, startY = 0, dragged = false, isDown = false;
     if (fab) {
@@ -1860,7 +2032,7 @@
       });
     }
 
-    // 2. 安卓键盘弹出“屏幕中线定位法”
+    // 2. 安卓键盘弹出“中线定位法”
     const bodyEl = document.getElementById('he-body');
     root.addEventListener('focusin', e => {
       const t = e.target;
@@ -1882,12 +2054,12 @@
       if (inp && e.target.value) inp.value = e.target.value;
     });
 
-    // API 预设切换下拉监听
+    // API 预设下拉切换
     document.getElementById('he-api-preset-select')?.addEventListener('change', e => {
       const id = e.target.value;
+      globalSettings.activeApiPresetId = id;
       const found = globalSettings.apiPresets.find(p => p.id === id);
       if (found) {
-        globalSettings.activeApiPresetId = id;
         globalSettings.baseUrl = found.baseUrl;
         globalSettings.apiKey = found.apiKey;
         globalSettings.model = found.model;
@@ -1897,10 +2069,10 @@
       }
     });
 
-    // 提示词预设切换下拉监听
+    // 提示词预设下拉切换
     document.getElementById('he-prompt-preset-select')?.addEventListener('change', e => {
       const id = e.target.value;
-      const found = globalSettings.promptPresets.find(p => p.id === id);
+      const found = getAllPromptPresets().find(p => p.id === id);
       if (found) {
         globalSettings.activePromptId = id;
         globalSettings.customPrompt = found.content;
@@ -1924,24 +2096,28 @@
       }
     });
 
-    // 3. 全局事件委托
+    // 3. 全局按钮事件委托
     root.addEventListener('click', async e => {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const act = btn.getAttribute('data-act');
-      const d = getChatData();
+      const d = getWorkingData();
 
       if (act === 'close-panel') {
         closePanel();
       } else if (act === 'toggle-fullscreen') {
         toggleFullscreen();
       } else if (act === 'zoom-field') {
-        const targetEl = document.getElementById(btn.getAttribute('data-target'));
+        const targetId = btn.getAttribute('data-target');
+        const targetEl = document.getElementById(targetId);
+        if (targetId === 'he-set-prompt' && getBuiltinById(globalSettings.activePromptId)) {
+          setStatus('内置默认提示词为只读保护，请先点「复制新建副本」后再放大编辑', true);
+          return;
+        }
         openFieldZoomEditor(targetEl, btn.getAttribute('data-title'));
       } else if (act === 'zoom-act') {
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
-        const ta = document.getElementById('he-act-ta-' + idx);
-        openFieldZoomEditor(ta, `第 ${idx + 1} 幕剧情卷宗`);
+        openFieldZoomEditor(document.getElementById('he-act-ta-' + idx), `第 ${idx + 1} 幕剧情卷宗`);
       } else if (act === 'switch-tab') {
         collectFormToData();
         currentTab = btn.getAttribute('data-tab') || 'mind';
@@ -1951,110 +2127,119 @@
       } else if (act === 'open-shelf') {
         collectFormToData();
         currentTab = 'shelf';
-        shelfNav = { level: 1, charName: '', chatId: '' };
+        shelfNav = { level: 1, charName: '' };
         root.querySelectorAll('.he-tab').forEach(t => t.classList.remove('he-active'));
         root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === 'shelf'));
         renderShelfView();
       } else if (act === 'shelf-open-char') {
-        shelfNav = { level: 2, charName: btn.getAttribute('data-char') || '', chatId: '' };
-        renderShelfView();
-      } else if (act === 'shelf-open-branch') {
-        shelfNav = { level: 3, charName: btn.getAttribute('data-char') || '', chatId: btn.getAttribute('data-chat') || '' };
+        shelfNav = { level: 2, charName: btn.getAttribute('data-char') || '' };
         renderShelfView();
       } else if (act === 'shelf-back') {
-        shelfNav.level = Math.max(1, shelfNav.level - 1);
+        shelfNav.level = 1;
         renderShelfView();
+      } else if (act === 'shelf-edit-branch') {
+        // ★ 跨窗免加载直接编辑该分支存档！
+        const cName = btn.getAttribute('data-char') || '';
+        const cId = btn.getAttribute('data-chat') || '';
+        const item = loadShelf()?.[cName]?.[cId];
+        if (!item) return;
+        const clonedData = item.structured
+          ? normalizeDataShape(JSON.parse(JSON.stringify(item.structured)), cName)
+          : createEmptyChatData(cName);
+        remoteEditTarget = { charName: cName, chatId: cId, data: clonedData };
+        currentTab = 'mind';
+        root.querySelectorAll('.he-tab').forEach(t => t.classList.toggle('he-active', t.getAttribute('data-tab') === 'mind'));
+        root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === 'mind'));
+        renderPanelFromData();
+        setStatus(`已进入【${cName} · ${cId}】跨窗口免加载编辑模式！修改后点右下角保存即可`);
+      } else if (act === 'exit-remote-edit') {
+        collectFormToData();
+        await saveWorkingData();
+        remoteEditTarget = null;
+        renderPanelFromData();
+        setStatus('已保存书架改动并返回当前聊天窗口');
       } else if (act === 'shelf-to-wb') {
-        const item = loadShelf()?.[shelfNav.charName]?.[shelfNav.chatId];
+        const cName = btn.getAttribute('data-char') || '';
+        const cId = btn.getAttribute('data-chat') || '';
+        const item = loadShelf()?.[cName]?.[cId];
         if (item) await openWorldBookModal(item.fullText, item.charName);
-      } else if (act === 'shelf-import-here') {
-        const item = loadShelf()?.[shelfNav.charName]?.[shelfNav.chatId];
-        if (!item?.structured) return;
-        openConfirmDialog('导入书架存档到当前聊天', `确定将【${escapeHtml(item.charName)} · ${escapeHtml(item.chatId)}】的记忆覆盖导入到当前窗口吗？（当前窗口原数据将自动备份进时光机）`, '确认导入', () => {
-          pushHistorySnapshot('导入书架存档前备份');
-          Object.assign(d, JSON.parse(JSON.stringify(item.structured)));
-          saveChatData();
-          currentTab = 'mind';
-          root.querySelectorAll('.he-tab').forEach(t => t.classList.toggle('he-active', t.getAttribute('data-tab') === 'mind'));
-          root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === 'mind'));
-          renderPanelFromData();
-          setStatus('已从书架导入该存档至当前窗口！');
-        });
       } else if (act === 'shelf-del-branch') {
-        openConfirmDialog('删除书架记录', `确定从总书架移除【${escapeHtml(shelfNav.chatId)}】的快照吗？（不影响原聊天文件）`, '确认删除', () => {
+        const cName = btn.getAttribute('data-char') || '';
+        const cId = btn.getAttribute('data-chat') || '';
+        openConfirmDialog('删除书架存档', `确定从书架移除【${escapeHtml(cName)} · ${escapeHtml(cId)}】吗？（不影响原酒馆聊天记录）`, '确认移除', () => {
           const shelf = loadShelf();
-          if (shelf?.[shelfNav.charName]) {
-            delete shelf[shelfNav.charName][shelfNav.chatId];
-            if (!Object.keys(shelf[shelfNav.charName]).length) delete shelf[shelfNav.charName];
+          if (shelf?.[cName]) {
+            delete shelf[cName][cId];
+            if (!Object.keys(shelf[cName]).length) delete shelf[cName];
             localStorage.setItem(STORAGE_SHELF_KEY, JSON.stringify(shelf));
           }
-          shelfNav.level = 1;
-          renderShelfView();
+          if (remoteEditTarget && remoteEditTarget.chatId === cId) remoteEditTarget = null;
+          renderPanelFromData();
         });
       } else if (act === 'open-history') {
         collectFormToData();
         openHistoryModal(d);
       } else if (act === 'open-floor-mgr') {
         collectFormToData();
-        saveChatData();
         openFloorManageModal(d);
       } else if (act === 'open-wb-modal') {
         collectFormToData();
-        saveChatData();
-        await openWorldBookModal(buildFormattedPromptBlock(d, false), getCtx().name2 || '角色');
+        const targetCharName = remoteEditTarget ? remoteEditTarget.charName : (getCtx().name2 || '角色');
+        await openWorldBookModal(buildFormattedPromptBlock(d, false), targetCharName);
       } else if (act === 'fill-new-floors') {
+        if (!isValidActiveChat()) { setStatus('请先点进具体角色的聊天窗口', true); return; }
         const total = (getCtx().chat || []).length;
         const nextStart = d.lastSummarizedFloor >= 0 ? d.lastSummarizedFloor + 1 : 0;
         if (nextStart >= total) {
-          setStatus(`上次已总结至第 ${d.lastSummarizedFloor} 楼，目前还没有产生新的对话楼层`, true);
+          setStatus(`上次已总结至第 ${d.lastSummarizedFloor} 楼，目前尚无新增对话楼层`, true);
           return;
         }
         document.getElementById('he-sum-start').value = String(nextStart);
         document.getElementById('he-sum-end').value = String(total - 1);
-        setStatus(`已自动填入新增楼层范围：第 ${nextStart} ~ ${total - 1} 楼！`);
+        setStatus(`已自动填入新增楼层：第 ${nextStart} ~ ${total - 1} 楼`);
       } else if (act === 'select-prof') {
         collectFormToData();
         d.activeCharIdx = parseInt(btn.getAttribute('data-idx'), 10) || 0;
         renderPanelFromData();
       } else if (act === 'add-prof') {
         collectFormToData();
-        const newName = window.prompt('请输入新增攻略/同场角色的名字：', '新角色 ' + (d.profiles.length + 1));
+        const newName = window.prompt('请输入新增角色的名字：', '新角色 ' + (d.profiles.length + 1));
         if (!newName) return;
         d.profiles.push(createSingleProfile(newName.trim()));
         d.activeCharIdx = d.profiles.length - 1;
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'delete-prof') {
-        if (d.profiles.length <= 1) { setStatus('至少需保留 1 个角色心智卡', true); return; }
+        if (d.profiles.length <= 1) { setStatus('至少保留 1 个角色心智卡', true); return; }
         collectFormToData();
         const curName = getCurrentProfile(d).name;
-        openConfirmDialog('删除角色子卡', `确定删除【${escapeHtml(curName)}】的心智卡吗？（可从历史时光机恢复）`, '确认删除', () => {
-          pushHistorySnapshot('删除角色卡前备份');
+        openConfirmDialog('删除角色子卡', `确定删除【${escapeHtml(curName)}】的心智卡吗？（可从历史时光机恢复）`, '确认删除', async () => {
+          pushHistorySnapshot(d, '删除角色卡前备份');
           d.profiles.splice(d.activeCharIdx, 1);
           d.activeCharIdx = 0;
-          saveChatData();
+          await saveWorkingData();
           renderPanelFromData();
         });
       } else if (act === 'toggle-prof-lock') {
         collectFormToData();
         const p = getCurrentProfile(d);
         if (p) p.locked = !p.locked;
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'set-init-gear') {
         collectFormToData();
         d.initiativeGear = parseInt(btn.getAttribute('data-gear'), 10) || 1;
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'set-gear') {
         collectFormToData();
         d.secretGear = parseInt(btn.getAttribute('data-gear'), 10) || 2;
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'set-action-lock') {
         collectFormToData();
         d.actionLock = btn.getAttribute('data-val') || 'normal';
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'cycle-theme') {
         const order = ['auto', 'dark', 'light'];
@@ -2065,20 +2250,20 @@
         collectFormToData();
         const k = btn.getAttribute('data-lock');
         if (k) d.locks[k] = !d.locks[k];
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
       } else if (act === 'add-act') {
         collectFormToData();
         d.acts.push({ id: 'act_' + Date.now(), title: '手写分幕', summary: '', checked: false });
-        saveChatData();
+        await saveWorkingData();
         renderActsList(d);
       } else if (act === 'delete-act') {
         collectFormToData();
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
-        openConfirmDialog('删除分幕卷宗', `确定删除第 ${idx + 1} 幕吗？（可从历史时光机找回）`, '确认删除', () => {
-          pushHistorySnapshot('删除分幕前备份');
+        openConfirmDialog('删除分幕卷宗', `确定删除第 ${idx + 1} 幕吗？（可从历史时光机找回）`, '确认删除', async () => {
+          pushHistorySnapshot(d, '删除分幕前备份');
           d.acts.splice(idx, 1);
-          saveChatData();
+          await saveWorkingData();
           renderActsList(d);
         });
       } else if (act === 'merge-selected-acts') {
@@ -2090,66 +2275,109 @@
           return;
         }
         openConfirmDialog(
-          '调用 AI 合并勾选分幕',
-          `即将调用 AI 将你勾选的 <b>第 ${selectedIndices.map(i => i + 1).join('、')} 幕</b> 浓缩合并为 1 幕（未勾选的分幕原样保留，合并前自动存入历史时光机）。确定消耗一次 API 请求执行吗？`,
+          '合并勾选分幕',
+          `即将调用 AI 将勾选的 <b>第 ${selectedIndices.map(i => i + 1).join('、')} 幕</b> 浓缩合并为 1 幕（合并前自动存入历史时光机）。确定执行吗？`,
           '确认合并',
           () => handleMergeSelectedActs(d, selectedIndices)
         );
       } else if (act === 'hide-floors' || act === 'unhide-floors') {
+        if (!isValidActiveChat()) {
+          setStatus('当前处于欢迎页，未打开具体角色聊天，已自动拦截楼层操作！', true);
+          return;
+        }
         const toHide = act === 'hide-floors';
         const sRaw = document.getElementById('he-hide-start')?.value;
         const eRaw = document.getElementById('he-hide-end')?.value;
         openConfirmDialog(
-          toHide ? '隐藏指定聊天楼层' : '恢复显示聊天楼层',
+          toHide ? '隐藏指定楼层' : '恢复显示楼层',
           `确定要<b>${toHide ? '隐藏' : '恢复显示'}</b>第 <b>${escapeHtml(sRaw || '0')} ~ ${escapeHtml(eRaw || '末尾')}</b> 楼吗？`,
           toHide ? '确认隐藏' : '确认恢复显示',
           () => handleHideOrUnhideFloors(toHide)
         );
       } else if (act === 'save-all') {
-        pushHistorySnapshot('手动保存备份');
         collectFormToData();
         saveGlobalSettings();
-        saveChatData();
-        renderPanelFromData();
-        setStatus('全部改动已落盘，并已同步至角色书架与时光机！');
+        pushHistorySnapshot(d, '手动保存备份');
+        const ok = await saveWorkingData();
+        if (ok) {
+          renderPanelFromData();
+          setStatus(remoteEditTarget ? '书架跨窗口编辑已保存！下次打开该聊天将自动同步' : '全部改动已安全保存！');
+        }
       } else if (act === 'run-summary') {
+        if (remoteEditTarget) {
+          setStatus('跨窗编辑书架存档时无法读取其他窗口的聊天楼层，请先点上方「退出跨窗编辑」', true);
+          return;
+        }
+        if (!isValidActiveChat()) {
+          setStatus('当前处于欢迎页，请先点进具体角色聊天窗口后再提炼总结！', true);
+          return;
+        }
         collectFormToData();
         saveGlobalSettings();
-        const startVal = document.getElementById('he-sum-start')?.value;
-        const endVal = document.getElementById('he-sum-end')?.value;
-        const skipVal = document.getElementById('he-sum-skip')?.value;
-        const slice = extractChatSliceText(startVal, endVal, skipVal);
+        const slice = extractChatSliceText(
+          document.getElementById('he-sum-start')?.value,
+          document.getElementById('he-sum-end')?.value,
+          document.getElementById('he-sum-skip')?.value
+        );
         if (!slice.count) {
           setStatus('所选楼层范围内没有可提炼的可见对话', true);
           return;
         }
         openConfirmDialog(
           '调用 AI 提炼总结',
-          `即将读取第 <b>${slice.actualStart} ~ ${slice.actualEnd}</b> 楼（共 <b>${slice.count}</b> 条有效消息）调用模型 <code>${escapeHtml(globalSettings.model || '未配置')}</code> 提炼总结。<br><small style="color:var(--he-muted);">生成后不会直接覆盖存档，会先进入预览模式供你检查修改。</small>`,
+          `即将读取第 <b>${slice.actualStart} ~ ${slice.actualEnd}</b> 楼（共 <b>${slice.count}</b> 条可见消息）提炼总结。<br><small style="color:var(--he-muted);">生成后将先进入预览模式，确认无误再应用。</small>`,
           '开始提炼',
           () => executeSummaryRequest(d, slice)
         );
       } else if (act === 'confirm-preview') {
         if (!previewDraft) return;
-        pushHistorySnapshot('AI总结生效前备份');
+        pushHistorySnapshot(d, 'AI总结生效前备份');
         applyDraftToChatData(d, previewDraft);
         previewDraft = null;
         document.getElementById('he-preview-box').style.display = 'none';
-        saveChatData();
+        await saveWorkingData();
         renderPanelFromData();
-        if (d.injectMode === 'floor') {
+        if (d.injectMode === 'floor' && !remoteEditTarget) {
           openFloorManageModal(d);
         } else {
-          setStatus('新总结已正式生效并追加新一幕！可随时在顶栏「历史时光机」来回切换版本');
+          setStatus('新总结已正式生效并追加新一幕！');
         }
       } else if (act === 'cancel-preview') {
         previewDraft = null;
         document.getElementById('he-preview-box').style.display = 'none';
         renderPanelFromData();
-        setStatus('已放弃本次生成结果，恢复原内容');
-      } else if (act === 'save-api-preset') {
+        setStatus('已放弃本次生成预览');
+      } else if (act === 'update-api-preset') {
+        // ★ 保存当前选中的 API 预设（若未选中则引导新建，只存预设名不拼模型名）
         collectFormToData();
-        const pName = window.prompt('请为当前 API 配置起一个预设名称：', globalSettings.model || '我的API配置');
+        const curId = document.getElementById('he-api-preset-select')?.value;
+        const found = globalSettings.apiPresets.find(p => p.id === curId);
+        if (found) {
+          found.baseUrl = globalSettings.baseUrl;
+          found.apiKey = globalSettings.apiKey;
+          found.model = globalSettings.model;
+          saveGlobalSettings();
+          renderPanelFromData();
+          setStatus(`已更新保存当前 API 预设【${found.name}】`);
+        } else {
+          const pName = window.prompt('当前未选中已有预设，请输入名称保存为新 API 预设：', '主力总结接口');
+          if (!pName) return;
+          const newId = 'api_' + Date.now();
+          globalSettings.apiPresets.push({
+            id: newId,
+            name: pName.trim(),
+            baseUrl: globalSettings.baseUrl,
+            apiKey: globalSettings.apiKey,
+            model: globalSettings.model
+          });
+          globalSettings.activeApiPresetId = newId;
+          saveGlobalSettings();
+          renderPanelFromData();
+          setStatus(`已新建并保存 API 预设【${pName.trim()}】`);
+        }
+      } else if (act === 'new-api-preset') {
+        collectFormToData();
+        const pName = window.prompt('请输入新 API 预设的名称：', '备用接口 ' + (globalSettings.apiPresets.length + 1));
         if (!pName) return;
         const newId = 'api_' + Date.now();
         globalSettings.apiPresets.push({
@@ -2162,53 +2390,83 @@
         globalSettings.activeApiPresetId = newId;
         saveGlobalSettings();
         renderPanelFromData();
-        setStatus(`已保存 API 预设【${pName.trim()}】`);
+        setStatus(`已新建 API 预设【${pName.trim()}】`);
       } else if (act === 'del-api-preset') {
         const curId = document.getElementById('he-api-preset-select')?.value;
-        if (!curId) return;
+        if (!curId) { setStatus('请先在下拉框选中要删除的 API 预设', true); return; }
         globalSettings.apiPresets = globalSettings.apiPresets.filter(p => p.id !== curId);
         globalSettings.activeApiPresetId = '';
         saveGlobalSettings();
         renderPanelFromData();
-      } else if (act === 'save-prompt-preset') {
-        collectFormToData();
-        const pName = window.prompt('请为当前提示词起一个预设名称：', '自定义提示词 ' + (globalSettings.promptPresets.length + 1));
-        if (!pName) return;
-        const newId = 'prm_' + Date.now();
-        globalSettings.promptPresets.push({
-          id: newId,
-          name: pName.trim(),
-          content: globalSettings.customPrompt
-        });
-        globalSettings.activePromptId = newId;
-        saveGlobalSettings();
-        renderPanelFromData();
-        setStatus(`已保存提示词预设【${pName.trim()}】`);
-      } else if (act === 'del-prompt-preset') {
-        const curId = document.getElementById('he-prompt-preset-select')?.value;
-        if (!curId || globalSettings.promptPresets.length <= 1) {
-          setStatus('至少保留一套提示词预设', true);
+        setStatus('已删除该 API 预设');
+      } else if (act === 'update-prompt-preset') {
+        // ★ 保存当前提示词预设（内置默认提示词严格锁死不可改，点击保存时自动引导复制新建！）
+        const curId = globalSettings.activePromptId;
+        const builtin = getBuiltinById(curId);
+        if (builtin) {
+          const copyName = window.prompt('内置默认提示词受只读保护不可直接更改！请输入新名称为您复制新建一份可编辑预设：', '我的定制提示词');
+          if (!copyName) return;
+          const newId = 'prm_' + Date.now();
+          globalSettings.userPromptPresets.push({
+            id: newId,
+            builtin: false,
+            name: copyName.trim(),
+            content: builtin.content
+          });
+          globalSettings.activePromptId = newId;
+          globalSettings.customPrompt = builtin.content;
+          saveGlobalSettings();
+          renderPanelFromData();
+          setStatus(`已复制新建【${copyName.trim()}】，现在可以自由编辑保存了！`);
           return;
         }
-        globalSettings.promptPresets = globalSettings.promptPresets.filter(p => p.id !== curId);
-        globalSettings.activePromptId = globalSettings.promptPresets[0].id;
-        globalSettings.customPrompt = globalSettings.promptPresets[0].content;
+        const userPrm = globalSettings.userPromptPresets.find(p => p.id === curId);
+        const textVal = document.getElementById('he-set-prompt')?.value || '';
+        if (userPrm) {
+          userPrm.content = textVal;
+          globalSettings.customPrompt = textVal;
+          saveGlobalSettings();
+          renderPanelFromData();
+          setStatus(`已保存当前提示词预设【${userPrm.name}】`);
+        }
+      } else if (act === 'copy-prompt-preset') {
+        const baseText = document.getElementById('he-set-prompt')?.value || BUILTIN_PROMPTS[0].content;
+        const pName = window.prompt('请输入复制新建的提示词预设名称：', '自定义提示词 ' + (globalSettings.userPromptPresets.length + 1));
+        if (!pName) return;
+        const newId = 'prm_' + Date.now();
+        globalSettings.userPromptPresets.push({
+          id: newId,
+          builtin: false,
+          name: pName.trim(),
+          content: baseText
+        });
+        globalSettings.activePromptId = newId;
+        globalSettings.customPrompt = baseText;
         saveGlobalSettings();
         renderPanelFromData();
+        setStatus(`已复制新建提示词预设【${pName.trim()}】，可直接修改保存！`);
+      } else if (act === 'del-prompt-preset') {
+        const curId = globalSettings.activePromptId;
+        if (getBuiltinById(curId)) {
+          setStatus('内置默认提示词不可删除', true);
+          return;
+        }
+        globalSettings.userPromptPresets = globalSettings.userPromptPresets.filter(p => p.id !== curId);
+        globalSettings.activePromptId = BUILTIN_PROMPTS[0].id;
+        globalSettings.customPrompt = BUILTIN_PROMPTS[0].content;
+        saveGlobalSettings();
+        renderPanelFromData();
+        setStatus('已删除该自定义提示词预设，切回默认只读模板');
       } else if (act === 'fetch-models') {
         collectFormToData();
         await handleFetchModels();
-      } else if (act === 'reset-prompt') {
-        globalSettings.customPrompt = BUILTIN_PROMPTS[0].content;
-        globalSettings.activePromptId = 'default_echo';
-        saveGlobalSettings();
-        renderPanelFromData();
-        setStatus('已恢复内置默认提示词');
       }
     });
   }
 
-  function handleHideOrUnhideFloors(toHide) {
+  // ★ 零重载隐藏/恢复楼层（直接改 DOM 属性 + await 异步存盘，绝不刷白聊天！）
+  async function handleHideOrUnhideFloors(toHide) {
+    if (!isValidActiveChat()) return;
     const ctx = getCtx();
     const chat = ctx.chat || [];
     if (!chat.length) return;
@@ -2217,13 +2475,19 @@
     const e = Math.min(chat.length - 1, isNaN(eRaw) ? chat.length - 1 : eRaw);
     if (s > e) { setStatus('起始楼层不能大于结束楼层', true); return; }
 
+    saveEmergencyFloorBackup((toHide ? '隐藏' : '恢复') + s + '-' + e + '楼');
     let count = 0;
     for (let i = s; i <= e; i++) {
-      if (chat[i]) { chat[i].is_system = !!toHide; count++; }
+      if (chat[i]) {
+        chat[i].is_system = !!toHide;
+        const domMes = document.querySelector(`#chat .mes[mesid="${i}"]`);
+        if (domMes) domMes.setAttribute('is_system', String(!!toHide));
+        count++;
+      }
     }
-    saveChatData();
-    try { ctx.reloadCurrentChat?.(); } catch (_) {}
-    setStatus(toHide ? `已隐藏第 ${s} ~ ${e} 楼（共 ${count} 楼）` : `已恢复显示第 ${s} ~ ${e} 楼（共 ${count} 楼）`);
+    await safeSaveChatAsync();
+    renderPanelFromData();
+    setStatus(toHide ? `已安全隐藏第 ${s} ~ ${e} 楼（共 ${count} 楼）` : `已恢复显示第 ${s} ~ ${e} 楼（共 ${count} 楼）`);
   }
 
   async function executeSummaryRequest(d, slice) {
@@ -2231,7 +2495,9 @@
     const presentNames = (d.profiles || []).filter(p => p.present !== false).map(p => p.name || '主控角色');
 
     setStatus(`正在提炼第 ${slice.actualStart}~${slice.actualEnd} 楼剧情与心智微变...`);
-    const sysPrompt = (globalSettings.customPrompt || BUILTIN_PROMPTS[0].content) + '\n\n' + getSpanRuleText(slice.count, noteVal, presentNames);
+    const activePrm = getAllPromptPresets().find(p => p.id === globalSettings.activePromptId) || BUILTIN_PROMPTS[0];
+    const promptBody = activePrm.builtin ? activePrm.content : (globalSettings.customPrompt || activePrm.content);
+    const sysPrompt = promptBody + '\n\n' + getSpanRuleText(slice.count, noteVal, presentNames);
     const userPayload = `【既有心智与账本参考】\n${buildFormattedPromptBlock(d, false)}\n\n【待总结新增对话（共${slice.count}楼）】\n${slice.text}`;
 
     const aiRaw = await callCleanLLM(sysPrompt, userPayload);
@@ -2325,19 +2591,19 @@
     const mergedText = await callCleanLLM(sys, toMergeText);
     if (!mergedText) return;
 
-    pushHistorySnapshot('合并分幕前自动备份');
+    pushHistorySnapshot(d, '合并分幕前自动备份');
     const firstIdx = selectedIndices[0];
     const mergedTitle = selectedIndices.map(i => d.acts[i].title).filter(Boolean).join(' + ');
     d.acts[firstIdx] = { id: 'act_' + Date.now(), title: mergedTitle || '合并卷宗', summary: mergedText.trim(), checked: false };
     for (let k = selectedIndices.length - 1; k >= 1; k--) {
       d.acts.splice(selectedIndices[k], 1);
     }
-    saveChatData();
+    await saveWorkingData();
     renderActsList(d);
     const mounted = findMountedSummaryFloors();
-    setStatus(mounted.length
-      ? `合并完成！检测到第 ${mounted.join(',')} 楼有旧总结，可点底栏「楼层挂载/单删」一键原地刷新该楼！`
-      : '勾选分幕合并完成！旧版本已存入历史时光机');
+    setStatus(!remoteEditTarget && mounted.length
+      ? `合并完成！检测到第 ${mounted.join(',')} 楼有旧总结，可点底栏「楼层挂载/单删」原地更新该楼`
+      : '勾选分幕已成功合并！');
   }
 
   async function handleFetchModels() {
@@ -2368,7 +2634,7 @@
   }
 
   // =========================================================================
-  // 十一、事件监听与三明治静默注入
+  // 十一、事件监听（含跨窗存档自动同步 & 三明治静默注入）
   // =========================================================================
   function bindTavernEvents() {
     const ctx = getCtx();
@@ -2376,10 +2642,18 @@
     const event_types = ctx.event_types || window.event_types;
     if (!eventSource || !event_types) return;
 
+    // 切换聊天时检查是否有在书架里跨窗改过的存档需要同步写入
+    if (event_types.CHAT_CHANGED) {
+      eventSource.on(event_types.CHAT_CHANGED, () => {
+        setTimeout(() => { checkAndApplyPendingShelfSync(); }, 300);
+      });
+    }
+
     if (event_types.CHAT_COMPLETION_PROMPT_READY) {
       eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, eventData => {
         try {
-          const d = getChatData();
+          if (!isValidActiveChat()) return;
+          const d = getActiveChatData();
           if (d.injectMode === 'none') return;
           if (hasVisibleFloorSummary(ctx.chat)) return;
 
@@ -2401,6 +2675,7 @@
     if (msgEvt) {
       eventSource.on(msgEvt, () => {
         try {
+          if (!isValidActiveChat()) return;
           const interval = parseInt(globalSettings.autoInterval, 10) || 0;
           const len = (getCtx().chat || []).length;
           if (interval > 0 && len > 0 && len % interval === 0) {
@@ -2424,7 +2699,7 @@
       mountUI();
       bindEvents();
       bindTavernEvents();
-      console.log(`[${PLUGIN_NAME}] v${PLUGIN_VERSION} initialized successfully.`);
+      console.log(`[${PLUGIN_NAME}] v${PLUGIN_VERSION} initialized safely.`);
     } catch (e) {
       console.warn('[HeartEcho] init error:', e);
     }
