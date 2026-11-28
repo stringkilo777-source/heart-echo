@@ -2,10 +2,10 @@
   "display_name": "心语回响",
   "name": "HeartEcho",
   "id": "heart-echo",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "extension",
   "js": "index.js",
   "css": "style.css",
   "author": "stringkilo777",
-  "description": "支持600s流式防断连、破限与预填充护甲、一键吸取酒馆预设破限、后台进度气泡通知、跨窗编辑与多人卡心智演化的双端记忆扩展。"
+  "description": "分幕剧情核心优先、极速无卡顿弹窗、跟随酒馆主题配色、独立破限+可选预设参考框、全自动/手动双模总结与自选楼层挂载的双端记忆扩展。"
 }
