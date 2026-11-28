@@ -2,10 +2,10 @@
   "display_name": "心语回响",
   "name": "HeartEcho",
   "id": "heart-echo",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "type": "extension",
   "js": "index.js",
   "css": "style.css",
   "author": "stringkilo777",
-  "description": "兼具零重载安全楼层管理、书架跨窗口免加载编辑、只读默认提示词保护、塞入已有世界书与多人卡心智演化的双端记忆扩展。"
+  "description": "支持600s流式防断连、破限与预填充护甲、一键吸取酒馆预设破限、后台进度气泡通知、跨窗编辑与多人卡心智演化的双端记忆扩展。"
 }
