@@ -1,8 +1,9 @@
 /* ==========================================================================
-   心语回响 (HeartEcho) v1.4.0 - 极速无卡顿双端样式表
-   Author: stringkilo777 | 零毛玻璃掉帧、零刺眼亮绿、100% 跟随酒馆主题色
+   心语回响 (HeartEcho) v1.5.0 - 响应式双端样式表 & 9款高定日夜色卡
+   Author: stringkilo777 | 零毛玻璃掉帧、全线性SVG、独立前缀 he- 隔离
    ========================================================================== */
 
+/* ① 默认：自动跟随酒馆美化主题 */
 #he-root {
   --he-bg: var(--SmartThemeBlurTintColor, #181b22);
   --he-panel: var(--SmartThemeChatTintColor, #20242d);
@@ -11,6 +12,7 @@
   --he-text: var(--SmartThemeBodyColor, #e8e4dc);
   --he-muted: var(--SmartThemeEmColor, #9ba3b0);
   --he-accent: var(--SmartThemeQuoteColor, #c8a45f);
+  --he-accent-fg: #14171d;
   --he-border: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.14));
   --he-danger: #d46a6a;
   --he-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
@@ -19,27 +21,113 @@
   box-sizing: border-box;
 }
 
-#he-root.he-theme-light {
-  --he-bg: #f5f3ee;
-  --he-panel: #fdfcfa;
-  --he-card: #ffffff;
-  --he-card-hover: #f0ede6;
-  --he-text: #26292e;
-  --he-muted: #6c737d;
-  --he-accent: #1e3a5f;
-  --he-border: rgba(0, 0, 0, 0.13);
-  --he-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+/* ② 暗金夜曲（夜 · 复刻暗粉玫瑰金哥特风） */
+#he-root.he-theme-nocturne {
+  --he-bg: #191515;
+  --he-panel: #221c1c;
+  --he-card: rgba(207, 163, 155, 0.06);
+  --he-card-hover: rgba(207, 163, 155, 0.12);
+  --he-text: #e8dcd8;
+  --he-muted: #a6938e;
+  --he-accent: #cfa39b;
+  --he-accent-fg: #191515;
+  --he-border: rgba(207, 163, 155, 0.22);
 }
 
-#he-root.he-theme-dark {
-  --he-bg: #14171d;
-  --he-panel: #1c2029;
-  --he-card: #252a36;
-  --he-card-hover: #2e3442;
-  --he-text: #e6e2d8;
-  --he-muted: #8c95a6;
-  --he-accent: #d4af6a;
-  --he-border: rgba(255, 255, 255, 0.12);
+/* ③ 墨夜香芋（夜 · 墨黑 #0B0C10 + 香芋紫 #C98EFF） */
+#he-root.he-theme-taro {
+  --he-bg: #0b0c10;
+  --he-panel: #14161f;
+  --he-card: rgba(201, 142, 255, 0.06);
+  --he-card-hover: rgba(201, 142, 255, 0.12);
+  --he-text: #ece6f5;
+  --he-muted: #9a92ab;
+  --he-accent: #c98eff;
+  --he-accent-fg: #120d1a;
+  --he-border: rgba(201, 142, 255, 0.22);
+}
+
+/* ④ 玄青榴红（夜 · 玄青 #1E1E1E + 榴花红 #F34718） */
+#he-root.he-theme-pomegranate {
+  --he-bg: #181818;
+  --he-panel: #222222;
+  --he-card: rgba(255, 255, 255, 0.045);
+  --he-card-hover: rgba(243, 71, 24, 0.1);
+  --he-text: #ece8e6;
+  --he-muted: #9e9693;
+  --he-accent: #f35b30;
+  --he-accent-fg: #ffffff;
+  --he-border: rgba(243, 91, 48, 0.25);
+}
+
+/* ⑤ 桃粉云白（日 · 蜜桃慕斯粉 #E58B9B + 纯净云白底） */
+#he-root.he-theme-peach {
+  --he-bg: #fff9fa;
+  --he-panel: #fff0f3;
+  --he-card: #ffffff;
+  --he-card-hover: #fde6ea;
+  --he-text: #422c30;
+  --he-muted: #8f6d74;
+  --he-accent: #d97588;
+  --he-accent-fg: #ffffff;
+  --he-border: rgba(217, 117, 136, 0.26);
+  --he-shadow: 0 8px 26px rgba(160, 80, 95, 0.16);
+}
+
+/* ⑥ 赭樱奶杏（日 · 赭樱 #946368 + 奶杏 #F3D6BD 柔化底） */
+#he-root.he-theme-sakura {
+  --he-bg: #fbf3eb;
+  --he-panel: #f5e6d7;
+  --he-card: #fffaf5;
+  --he-card-hover: #f2dfd0;
+  --he-text: #3d282a;
+  --he-muted: #7d5d60;
+  --he-accent: #946368;
+  --he-accent-fg: #fffaf5;
+  --he-border: rgba(148, 99, 104, 0.25);
+  --he-shadow: 0 8px 26px rgba(100, 60, 65, 0.15);
+}
+
+/* ⑦ 碧落乳白（日 · 碧落青 #45978C + 乳白 #F9F4DC） */
+#he-root.he-theme-celadon {
+  --he-bg: #f9f5e3;
+  --he-panel: #f1ebd2;
+  --he-card: #fdfcf4;
+  --he-card-hover: #e7e1c6;
+  --he-text: #223633;
+  --he-muted: #5e7874;
+  --he-accent: #45978c;
+  --he-accent-fg: #ffffff;
+  --he-border: rgba(69, 151, 140, 0.26);
+  --he-shadow: 0 8px 24px rgba(45, 95, 88, 0.15);
+}
+
+/* ⑧ 宝蓝奶杏（日 · 深宝蓝 #0E61AC + 奶杏 #FAF2E0） */
+#he-root.he-theme-sapphire {
+  --he-bg: #faf2e0;
+  --he-panel: #f2e7cf;
+  --he-card: #fffdf7;
+  --he-card-hover: #ebe0c5;
+  --he-text: #1c2d3d;
+  --he-muted: #5c7085;
+  --he-accent: #0e61ac;
+  --he-accent-fg: #ffffff;
+  --he-border: rgba(14, 97, 172, 0.24);
+  --he-shadow: 0 8px 24px rgba(14, 65, 115, 0.15);
+}
+
+/* ⑨ 月灰米霜（日 · 莫兰迪月灰紫 #7E80A6 + 米霜 #F6ECE2） */
+#he-root.he-theme-moon {
+  --he-bg: #f6ece2;
+  --he-panel: #ede0d4;
+  --he-card: #fcf8f4;
+  --he-card-hover: #e6d7ca;
+  --he-text: #2f3042;
+  --he-muted: #6e708a;
+  --he-accent: #7a7ca3;
+  --he-accent-fg: #ffffff;
+  --he-border: rgba(122, 124, 163, 0.26);
+  --he-shadow: 0 8px 24px rgba(70, 72, 105, 0.14);
 }
 
 #he-root *,
@@ -48,20 +136,20 @@
   box-sizing: border-box;
 }
 
-/* ===== 顶部气泡通知 (完全跟随酒馆主题色，仅报错时用柔和暗红) ===== */
+/* ===== 顶部轻提示气泡 ===== */
 #he-toast-wrap {
   position: fixed;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2000010;
+  z-index: 2000012;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
   pointer-events: none;
   width: 92vw;
-  max-width: 450px;
+  max-width: 440px;
 }
 
 .he-toast {
@@ -87,20 +175,45 @@
   display: inline-flex;
 }
 
-.he-toast.he-toast-err {
-  border-color: var(--he-danger);
-}
-
-.he-toast.he-toast-err .he-toast-icon {
-  color: var(--he-danger);
-}
+.he-toast.he-toast-err { border-color: var(--he-danger); }
+.he-toast.he-toast-err .he-toast-icon { color: var(--he-danger); }
 
 @keyframes he-toast-in {
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ===== 悬浮球 (移除原谅绿发光，全程保持酒馆主题质感) ===== */
+/* ===== 全局生成完成居中提醒弹窗（即使关掉主面板也会在屏幕中央弹出提醒！） ===== */
+#he-finish-alert {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  z-index: 2000011;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+#he-finish-alert.he-open {
+  display: flex;
+  animation: he-fast-open 0.12s ease-out;
+}
+
+.he-finish-box {
+  width: 100%;
+  max-width: 440px;
+  background: var(--he-bg);
+  border: 1.5px solid var(--he-accent);
+  border-radius: 12px;
+  box-shadow: var(--he-shadow);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== 悬浮球 ===== */
 #he-fab {
   position: fixed;
   width: 44px;
@@ -151,7 +264,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--he-accent);
-  color: #14171d;
+  color: var(--he-accent-fg);
   font-size: 10px;
   font-weight: 700;
   padding: 1px 5px;
@@ -161,16 +274,14 @@
   pointer-events: none;
 }
 
-#he-fab.he-busy #he-fab-badge {
-  display: block;
-}
+#he-fab.he-busy #he-fab-badge { display: block; }
 
 @keyframes he-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.07); }
 }
 
-/* ===== 极速遮罩与主面板（移除 backdrop-filter 毛玻璃，彻底解决安卓弹窗卡顿） ===== */
+/* ===== 极速主遮罩与主面板 ===== */
 #he-backdrop {
   position: fixed;
   inset: 0;
@@ -194,7 +305,7 @@
 
 #he-panel {
   width: 100%;
-  max-width: 820px;
+  max-width: 830px;
   height: 86vh;
   max-height: 88vh;
   background: var(--he-bg);
@@ -204,7 +315,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  will-change: transform, opacity;
 }
 
 #he-backdrop.he-fullscreen { padding: 0; }
@@ -217,8 +327,20 @@
   border: none;
 }
 
-/* ===== 顶栏与页签栏 ===== */
+/* ===== 顶栏与二级弹窗不换行顶栏 ===== */
 .he-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 13px;
+  background: var(--he-panel);
+  border-bottom: 1px solid var(--he-border);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.he-sub-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -226,8 +348,18 @@
   padding: 10px 14px;
   background: var(--he-panel);
   border-bottom: 1px solid var(--he-border);
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.he-sub-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--he-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .he-title-wrap {
@@ -247,17 +379,16 @@
   flex-wrap: wrap;
 }
 
-#he-remote-banner,
-#he-preview-banner {
+#he-remote-banner {
   flex-shrink: 0;
   display: none;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 14px;
-  background: rgba(200, 164, 95, 0.15);
+  padding: 6px 14px;
+  background: rgba(200, 164, 95, 0.14);
   border-bottom: 1px solid var(--he-accent);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--he-accent);
   font-weight: 600;
   flex-wrap: wrap;
@@ -279,7 +410,7 @@
 .he-tab {
   flex: 1 0 auto;
   min-height: 42px;
-  padding: 9px 13px;
+  padding: 9px 12px;
   font-size: 13px;
   line-height: 1.3;
   color: var(--he-muted);
@@ -332,7 +463,6 @@
   border-color: var(--he-accent);
   color: var(--he-accent);
   font-weight: 600;
-  background: rgba(200, 164, 95, 0.14);
 }
 
 .he-dot {
@@ -439,7 +569,7 @@
 .he-hint {
   font-size: 11.5px;
   color: var(--he-muted);
-  opacity: 0.88;
+  opacity: 0.9;
   line-height: 1.45;
 }
 
@@ -470,7 +600,7 @@
   border-color: var(--he-accent);
 }
 
-/* ===== 按钮（保存反馈同样跟随主题色，不再用突兀亮绿） ===== */
+/* ===== 按钮与档位切换组 ===== */
 .he-btn {
   background: var(--he-card);
   color: var(--he-text);
@@ -488,12 +618,12 @@
 
 .he-btn:active {
   transform: scale(0.96);
-  filter: brightness(0.9);
+  filter: brightness(0.92);
 }
 
 .he-btn-primary {
   background: var(--he-accent);
-  color: #14171d;
+  color: var(--he-accent-fg);
   border-color: var(--he-accent);
   font-weight: 600;
 }
@@ -551,10 +681,9 @@
   border-color: var(--he-accent);
   color: var(--he-accent);
   font-weight: 600;
-  background: rgba(200, 164, 95, 0.14);
+  background: rgba(200, 164, 95, 0.12);
 }
 
-/* 模块勾选胶囊 */
 .he-mod-checks {
   display: flex;
   flex-wrap: wrap;
@@ -571,6 +700,43 @@
   background: var(--he-panel);
   font-size: 12px;
   cursor: pointer;
+}
+
+/* 折叠手风琴块（用于诊断器与时光机详情对比，整洁不占屏） */
+.he-fold {
+  border: 1px solid var(--he-border);
+  border-radius: 7px;
+  background: var(--he-panel);
+  overflow: hidden;
+}
+
+.he-fold > summary {
+  padding: 8px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--he-accent);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.he-fold > summary::-webkit-details-marker { display: none; }
+.he-fold > summary::after { content: '展开 ▾'; font-size: 11px; color: var(--he-muted); font-weight: normal; }
+.he-fold[open] > summary::after { content: '收起 ▴'; }
+
+.he-fold-body {
+  padding: 9px 11px;
+  border-top: 1px solid var(--he-border);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--he-text);
+  max-height: 36vh;
+  overflow-y: auto;
 }
 
 /* ===== 底栏 ===== */
@@ -590,7 +756,7 @@
   font-size: 12px;
   color: var(--he-muted);
   flex: 1;
-  min-width: 160px;
+  min-width: 140px;
 }
 
 /* ===== 极速二级弹窗 ===== */
@@ -612,8 +778,8 @@
 
 .he-submodal-box {
   width: 100%;
-  max-width: 620px;
-  max-height: 90vh;
+  max-width: 600px;
+  max-height: 88vh;
   background: var(--he-bg);
   border: 1px solid var(--he-accent);
   border-radius: 10px;
@@ -636,24 +802,8 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
 }
 
-.he-shelf-card-click {
-  cursor: pointer;
-}
-
-.he-shelf-card-click:hover {
-  background: var(--he-card-hover);
-}
-
-.he-diag-read {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12.5px;
-  line-height: 1.55;
-  background: var(--he-panel);
-  border: 1px solid var(--he-border);
-  border-radius: 6px;
-  padding: 9px 11px;
-   }
+.he-shelf-card-click { cursor: pointer; }
+.he-shelf-card-click:hover { background: var(--he-card-hover); }
