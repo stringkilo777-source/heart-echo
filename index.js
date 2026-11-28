@@ -2678,3 +2678,333 @@ function bindEvents() {
         apiKey: globalSettings.apiKey,
         model: globalSettings.model
       });
+        globalSettings.activeApiPresetId = newId;
+        saveGlobalSettings();
+        renderPanelFromData();
+        showToast(`已新建 API 预设【${pName.trim()}】`, 'ok');
+      } else if (act === 'del-api-preset') {
+        const curId = document.getElementById('he-api-preset-select')?.value;
+        if (!curId) { showToast('请先选中要删除的 API 预设', 'err'); return; }
+        globalSettings.apiPresets = globalSettings.apiPresets.filter(p => p.id !== curId);
+        globalSettings.activeApiPresetId = '';
+        saveGlobalSettings();
+        renderPanelFromData();
+        showToast('已删除该 API 预设', 'ok');
+      } else if (act === 'update-prompt-preset') {
+        const curId = globalSettings.activePromptId;
+        const builtin = getBuiltinById(curId);
+        if (builtin) {
+          const copyName = window.prompt('内置默认提示词受只读保护！请输入新名称为您复制新建一份可编辑预设：', '我的定制提示词');
+          if (!copyName) return;
+          const newId = 'prm_' + Date.now();
+          globalSettings.userPromptPresets.push({ id: newId, builtin: false, name: copyName.trim(), content: builtin.content });
+          globalSettings.activePromptId = newId;
+          globalSettings.customPrompt = builtin.content;
+          saveGlobalSettings();
+          renderPanelFromData();
+          showToast(`已复制新建【${copyName.trim()}】，现在可自由编辑保存！`, 'ok');
+          return;
+        }
+        const userPrm = globalSettings.userPromptPresets.find(p => p.id === curId);
+        const textVal = document.getElementById('he-set-prompt')?.value || '';
+        if (userPrm) {
+          userPrm.content = textVal;
+          globalSettings.customPrompt = textVal;
+          saveGlobalSettings();
+          renderPanelFromData();
+          flashButtonSaved(btn, '已保存');
+          showToast(`已保存提示词预设【${userPrm.name}】`, 'ok');
+        }
+      } else if (act === 'copy-prompt-preset') {
+        const baseText = document.getElementById('he-set-prompt')?.value || BUILTIN_PROMPTS[0].content;
+        const pName = window.prompt('请输入复制新建的提示词预设名称：', '自定义提示词 ' + (globalSettings.userPromptPresets.length + 1));
+        if (!pName) return;
+        const newId = 'prm_' + Date.now();
+        globalSettings.userPromptPresets.push({ id: newId, builtin: false, name: pName.trim(), content: baseText });
+        globalSettings.activePromptId = newId;
+        globalSettings.customPrompt = baseText;
+        saveGlobalSettings();
+        renderPanelFromData();
+        showToast(`已复制新建【${pName.trim()}】`, 'ok');
+      } else if (act === 'del-prompt-preset') {
+        const curId = globalSettings.activePromptId;
+        if (getBuiltinById(curId)) { showToast('内置默认提示词不可删除', 'err'); return; }
+        globalSettings.userPromptPresets = globalSettings.userPromptPresets.filter(p => p.id !== curId);
+        globalSettings.activePromptId = BUILTIN_PROMPTS[0].id;
+        globalSettings.customPrompt = BUILTIN_PROMPTS[0].content;
+        saveGlobalSettings();
+        renderPanelFromData();
+        showToast('已删除自定义提示词预设', 'ok');
+      } else if (act === 'fetch-models') {
+        collectFormToData();
+        await handleFetchModels();
+      }
+    });
+  }
+
+  async function handleHideOrUnhideFloors(toHide) {
+    if (!isValidActiveChat()) return;
+    const ctx = getCtx();
+    const chat = ctx.chat || [];
+    if (!chat.length) return;
+    const s = Math.max(0, parseInt(document.getElementById('he-hide-start')?.value, 10) || 0);
+    const eRaw = parseInt(document.getElementById('he-hide-end')?.value, 10);
+    const e = Math.min(chat.length - 1, isNaN(eRaw) ? chat.length - 1 : eRaw);
+    if (s > e) { showToast('起始楼层不能大于结束楼层', 'err'); return; }
+
+    saveEmergencyFloorBackup((toHide ? '隐藏' : '恢复') + s + '-' + e + '楼');
+    let count = 0;
+    for (let i = s; i <= e; i++) {
+      if (chat[i]) {
+        chat[i].is_system = !!toHide;
+        const domMes = document.querySelector(`#chat .mes[mesid="${i}"]`);
+        if (domMes) domMes.setAttribute('is_system', String(!!toHide));
+        count++;
+      }
+    }
+    await safeSaveChatAsync();
+    renderPanelFromData();
+    showToast(toHide ? `已隐藏第 ${s} ~ ${e} 楼（共 ${count} 楼）` : `已恢复显示第 ${s} ~ ${e} 楼（共 ${count} 楼）`, 'ok');
+  }
+
+  async function executeSummaryRequest(d, slice) {
+    const noteVal = document.getElementById('he-sum-note')?.value;
+    const presentNames = (d.profiles || []).filter(p => p.present !== false).map(p => p.name || '主控角色');
+
+    isSummarizing = true;
+    updateFabBusyBadge('busy', '思考中...');
+    setStatus(`后台提炼中（第 ${slice.actualStart}~${slice.actualEnd} 楼），可随时关闭面板...`);
+    showToast(`已开始后台提炼第 ${slice.actualStart}~${slice.actualEnd} 楼，关掉面板也会在完成后通知你！`, 'ok');
+
+    const activePrm = getAllPromptPresets().find(p => p.id === globalSettings.activePromptId) || BUILTIN_PROMPTS[0];
+    const promptBody = activePrm.builtin ? activePrm.content : (globalSettings.customPrompt || activePrm.content);
+    const sysPrompt = promptBody + '\n\n' + getSpanRuleText(slice.count, noteVal, presentNames);
+    const userPayload = `【既有心智与账本参考】\n${buildFormattedPromptBlock(d, false)}\n\n【待总结新增对话（共${slice.count}楼）】\n${slice.text}`;
+
+    const aiRaw = await callCleanLLM(sysPrompt, userPayload, recvLen => {
+      updateFabBusyBadge('busy', `${recvLen}字`);
+      setStatus(`流式接收记忆中：已生成 ${recvLen} 字...`);
+    });
+
+    isSummarizing = false;
+    if (!aiRaw) {
+      updateFabBusyBadge('idle');
+      return;
+    }
+
+    const parsed = parseAiJson(aiRaw);
+    if (!parsed) {
+      updateFabBusyBadge('idle');
+      const reason = lastRawDiagnostic.errorDetail || '模型未按JSON格式输出';
+      setStatus(`解析失败：${reason}（请点顶栏「诊断」查看模型原始输出）`, true);
+      showToast(`JSON解析失败：点面板顶栏「诊断」可查看AI原始回复`, 'err', true);
+      return;
+    }
+
+    parsed._summarizedEndFloor = slice.actualEnd;
+    previewDraft = parsed;
+    updateFabBusyBadge('ready', '已完成!');
+
+    currentTab = 'npcs';
+    const root = document.getElementById('he-root');
+    root.querySelectorAll('.he-tab').forEach(t => t.classList.toggle('he-active', t.getAttribute('data-tab') === 'npcs'));
+    root.querySelectorAll('.he-pane').forEach(p => p.classList.toggle('he-active', p.getAttribute('data-pane') === 'npcs'));
+    document.getElementById('he-preview-box').style.display = 'block';
+
+    applyMindPreviewToProfiles(d, parsed);
+    if (parsed.secretLedger) {
+      document.getElementById('he-f-truthAndMask').value = parsed.secretLedger.truthAndMask || d.secretLedger.truthAndMask;
+      document.getElementById('he-f-charClues').value = parsed.secretLedger.charClues || d.secretLedger.charClues;
+      if (!d.locks.hardFacts) {
+        document.getElementById('he-f-hardFacts').value = parsed.secretLedger.hardFacts || d.secretLedger.hardFacts;
+      }
+    }
+    if (parsed.snapshot) {
+      document.getElementById('he-f-sceneBridge').value = parsed.snapshot.sceneBridge || d.snapshot.sceneBridge;
+      document.getElementById('he-f-attireAndBody').value = parsed.snapshot.attireAndBody || d.snapshot.attireAndBody;
+      document.getElementById('he-f-itemsAndTodos').value = parsed.snapshot.itemsAndTodos || d.snapshot.itemsAndTodos;
+    }
+    if (parsed.npcs) document.getElementById('he-f-npcs').value = parsed.npcs;
+
+    setStatus('提炼完成！请检查微调后点「确认应用本次总结」');
+    showToast(`心语回响：第 ${slice.actualStart}~${slice.actualEnd} 楼记忆提炼已完成！点击此处打开预览确认`, 'ok', true);
+  }
+
+  function applyMindPreviewToProfiles(d, parsed) {
+    const list = Array.isArray(parsed.characterMinds)
+      ? parsed.characterMinds
+      : (parsed.charMind ? [Object.assign({ name: getCurrentProfile(d).name }, parsed.charMind)] : []);
+
+    list.forEach(item => {
+      if (!item) return;
+      let target = d.profiles.find(p => p.name && item.name && (p.name.includes(item.name) || item.name.includes(p.name)));
+      if (!target && d.profiles.length === 1) target = d.profiles[0];
+      if (!target && item.name) {
+        target = createSingleProfile(item.name);
+        d.profiles.push(target);
+      }
+      if (target && !target.locked) {
+        target.selfBase = item.selfBase || target.selfBase;
+        target.surfaceView = item.surfaceView || target.surfaceView;
+        target.subconscious = item.subconscious || target.subconscious;
+        target.innerVoice = item.innerVoice || target.innerVoice;
+        target.anchors = item.anchors || target.anchors;
+      }
+    });
+
+    const cur = getCurrentProfile(d);
+    if (cur) {
+      document.getElementById('he-f-innerVoice').value = cur.innerVoice;
+      document.getElementById('he-f-selfBase').value = cur.selfBase;
+      document.getElementById('he-f-surfaceView').value = cur.surfaceView;
+      document.getElementById('he-f-subconscious').value = cur.subconscious;
+      document.getElementById('he-f-anchors').value = cur.anchors;
+    }
+    renderCharSubtabs(d);
+  }
+
+  function applyDraftToChatData(d, draft) {
+    collectFormToData();
+    if (typeof draft._summarizedEndFloor === 'number') {
+      d.lastSummarizedFloor = Math.max(d.lastSummarizedFloor, draft._summarizedEndFloor);
+    }
+    if (draft?.newAct?.summary) {
+      d.acts.push({
+        id: 'act_' + Date.now(),
+        title: draft.newAct.title || (`第 ${d.acts.length + 1} 阶段`),
+        summary: draft.newAct.summary,
+        checked: false
+      });
+    }
+  }
+
+  async function handleMergeSelectedActs(d, selectedIndices) {
+    isSummarizing = true;
+    updateFabBusyBadge('busy', '合并中...');
+    setStatus(`正在浓缩合并勾选的 ${selectedIndices.length} 幕卷宗...`);
+    const toMergeText = selectedIndices.map(i => `【第${i + 1}幕 · ${d.acts[i].title}】\n${d.acts[i].summary}`).join('\n\n');
+    const sys = '你是专业叙事归档师。请将用户勾选的这几幕剧情浓缩合并为一段脉络清晰、保留完整前因后果、时间节点与情感转折的详实卷宗（500~900字），直接输出合并正文，不要多余解释。';
+    const mergedText = await callCleanLLM(sys, toMergeText, len => updateFabBusyBadge('busy', `${len}字`));
+    isSummarizing = false;
+    updateFabBusyBadge('idle');
+    if (!mergedText) return;
+
+    pushHistorySnapshot(d, '合并分幕前自动备份');
+    const firstIdx = selectedIndices[0];
+    const mergedTitle = selectedIndices.map(i => d.acts[i].title).filter(Boolean).join(' + ');
+    d.acts[firstIdx] = { id: 'act_' + Date.now(), title: mergedTitle || '合并卷宗', summary: mergedText.trim(), checked: false };
+    for (let k = selectedIndices.length - 1; k >= 1; k--) {
+      d.acts.splice(selectedIndices[k], 1);
+    }
+    await saveWorkingData();
+    renderActsList(d);
+    showToast('勾选分幕已成功浓缩合并！', 'ok');
+  }
+
+  async function handleFetchModels() {
+    const base = String(globalSettings.baseUrl || '').trim().replace(/\/+$/, '');
+    const key = String(globalSettings.apiKey || '').trim();
+    if (!base || !key) { showToast('请先填写 API Base URL 和 API Key', 'err'); return; }
+    setStatus('正在拉取模型列表...');
+    const urls = base.endsWith('/v1') ? [base + '/models'] : [base + '/v1/models', base + '/models'];
+    for (const u of urls) {
+      try {
+        const res = await fetch(u, { headers: { 'Authorization': 'Bearer ' + key } });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const list = Array.isArray(data?.data) ? data.data.map(m => m.id).filter(Boolean) : [];
+        if (list.length) {
+          const sel = document.getElementById('he-model-select');
+          if (sel) {
+            sel.style.display = 'inline-block';
+            sel.innerHTML = list.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
+            document.getElementById('he-set-model').value = list[0];
+          }
+          setStatus(`成功拉取 ${list.length} 个模型！`);
+          showToast(`成功拉取 ${list.length} 个模型！`, 'ok');
+          return;
+        }
+      } catch (_) {}
+    }
+    showToast('拉取模型列表失败，请手动输入模型名', 'err');
+  }
+
+  function bindTavernEvents() {
+    const ctx = getCtx();
+    const eventSource = ctx.eventSource || window.eventSource;
+    const event_types = ctx.event_types || window.event_types;
+    if (!eventSource || !event_types) return;
+
+    if (event_types.CHAT_CHANGED) {
+      eventSource.on(event_types.CHAT_CHANGED, () => {
+        setTimeout(() => { checkAndApplyPendingShelfSync(); }, 300);
+      });
+    }
+
+    if (event_types.CHAT_COMPLETION_PROMPT_READY) {
+      eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, eventData => {
+        try {
+          if (!isValidActiveChat()) return;
+          const d = getActiveChatData();
+          if (d.injectMode === 'none') return;
+          if (hasVisibleFloorSummary(ctx.chat)) return;
+
+          const promptBlock = buildFormattedPromptBlock(d, false);
+          if (!promptBlock || promptBlock.length < 60) return;
+
+          const chatMsgs = eventData?.chat;
+          if (Array.isArray(chatMsgs)) {
+            const insertIdx = chatMsgs.length > 1 ? 1 : chatMsgs.length;
+            chatMsgs.splice(insertIdx, 0, { role: 'system', content: promptBlock });
+          }
+        } catch (e) {
+          console.warn('[HeartEcho] prompt injection warning:', e);
+        }
+      });
+    }
+
+    const msgEvt = event_types.MESSAGE_RECEIVED || event_types.MESSAGE_UPDATED || event_types.MESSAGE_SENT;
+    if (msgEvt) {
+      eventSource.on(msgEvt, () => {
+        try {
+          if (!isValidActiveChat()) return;
+          const interval = parseInt(globalSettings.autoInterval, 10) || 0;
+          const len = (getCtx().chat || []).length;
+          if (interval > 0 && len > 0 && len % interval === 0) {
+            showToast(`已满 ${len} 楼，可点击悬浮球提炼阶段记忆！`, 'ok', true);
+          }
+        } catch (_) {}
+      });
+    }
+  }
+
+  let doneInit = false;
+  function fireInit() {
+    if (doneInit) return;
+    doneInit = true;
+    try {
+      loadGlobalSettings();
+      mountUI();
+      bindEvents();
+      bindTavernEvents();
+      console.log(`[${PLUGIN_NAME}] v${PLUGIN_VERSION} initialized safely.`);
+    } catch (e) {
+      console.warn('[HeartEcho] init error:', e);
+    }
+  }
+
+  const initCtx = getCtx();
+  const initEs = initCtx.eventSource || window.eventSource;
+  const initEt = initCtx.event_types || window.event_types;
+  if (initEs && initEt && initEt.APP_READY) {
+    initEs.on(initEt.APP_READY, fireInit);
+  }
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    const ok = !!window.extension_settings || !!window.SillyTavern;
+    if (ok || Date.now() - t0 > 3500) {
+      clearInterval(iv);
+      fireInit();
+    }
+  }, 250);
+})();
