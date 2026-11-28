@@ -2,10 +2,10 @@
   "display_name": "心语回响",
   "name": "HeartEcho",
   "id": "heart-echo",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "extension",
   "js": "index.js",
   "css": "style.css",
   "author": "stringkilo777",
-  "description": "分幕剧情核心优先、极速无卡顿弹窗、跟随酒馆主题配色、独立破限+可选预设参考框、全自动/手动双模总结与自选楼层挂载的双端记忆扩展。"
+  "description": "集成分幕核心记忆、灵动开场白工坊（支持联动酒馆预设与杀八股插件）、9款高定日夜色卡主题、多人卡心智演化与跨窗编辑的双端记忆扩展。"
 }
