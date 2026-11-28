@@ -1,5 +1,5 @@
 /* ==========================================================================
-   心语回响 (HeartEcho) v1.2.1 - 响应式双端样式表
+   心语回响 (HeartEcho) v1.3.0 - 响应式双端样式表
    Author: stringkilo777 | 全内联线性 SVG、零 Emoji、独立前缀 he- 隔离
    ========================================================================== */
 
@@ -12,7 +12,7 @@
   --he-muted: var(--SmartThemeEmColor, #9ba3b0);
   --he-accent: var(--SmartThemeQuoteColor, #c8a45f);
   --he-border: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.14));
-  --he-danger: #d9534f;
+  --he-danger: #e05d58;
   --he-ok: #5cb85c;
   --he-shadow: 0 12px 36px rgba(0, 0, 0, 0.58);
   font-family: inherit;
@@ -49,7 +49,48 @@
   box-sizing: border-box;
 }
 
-/* ===== 悬浮球 (左右贴边半隐藏) ===== */
+/* ===== 全局顶层醒目气泡通知 (Toast，即使关掉面板也清晰可见) ===== */
+#he-toast-wrap {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000010;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: 92vw;
+  max-width: 460px;
+}
+
+.he-toast {
+  pointer-events: auto;
+  background: var(--he-panel);
+  color: var(--he-text);
+  border: 1.5px solid var(--he-accent);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: he-toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.he-toast.he-toast-ok { border-color: var(--he-ok); }
+.he-toast.he-toast-err { border-color: var(--he-danger); }
+
+@keyframes he-toast-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ===== 悬浮球 (支持贴边半隐藏 + 后台总结呼吸灯与实时字数角标) ===== */
 #he-fab {
   position: fixed;
   width: 44px;
@@ -76,7 +117,7 @@
 #he-fab.he-dock-right {
   right: -22px !important;
   left: auto !important;
-  opacity: 0.68;
+  opacity: 0.72;
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
 }
@@ -84,9 +125,49 @@
 #he-fab.he-dock-left {
   left: -22px !important;
   right: auto !important;
-  opacity: 0.68;
+  opacity: 0.72;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
+}
+
+/* 后台正在总结时的呼吸脉冲状态 */
+#he-fab.he-busy {
+  opacity: 1 !important;
+  border-color: var(--he-accent);
+  animation: he-pulse 1.4s infinite ease-in-out;
+}
+
+/* 后台总结已完成待查看绿灯状态 */
+#he-fab.he-ready-dot {
+  opacity: 1 !important;
+  border-color: var(--he-ok);
+  box-shadow: 0 0 14px rgba(92, 184, 92, 0.65);
+}
+
+#he-fab-badge {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--he-accent);
+  color: #14171d;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+  display: none;
+  pointer-events: none;
+}
+
+#he-fab.he-busy #he-fab-badge,
+#he-fab.he-ready-dot #he-fab-badge {
+  display: block;
+}
+
+@keyframes he-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 /* ===== 主遮罩与主面板 ===== */
@@ -136,7 +217,7 @@
   border: none;
 }
 
-/* ===== 顶栏、跨窗编辑横幅与防挤扁页签栏 ===== */
+/* ===== 顶栏与防挤扁页签栏 ===== */
 .he-header {
   flex-shrink: 0;
   display: flex;
@@ -333,7 +414,6 @@
   gap: 6px;
 }
 
-/* 纯图标单框放大按钮（去掉多余文字） */
 .he-zoom-icon-btn {
   background: transparent;
   border: 1px solid var(--he-border);
@@ -379,7 +459,7 @@
 }
 
 .he-textarea {
-  min-height: 70px;
+  min-height: 74px;
   resize: vertical;
 }
 
@@ -403,6 +483,7 @@
   gap: 5px;
   white-space: nowrap;
   max-width: 100%;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .he-btn:active {
@@ -417,9 +498,15 @@
   font-weight: 600;
 }
 
+.he-btn-ok {
+  background: var(--he-ok) !important;
+  color: #ffffff !important;
+  border-color: var(--he-ok) !important;
+}
+
 .he-btn-danger {
   color: var(--he-danger);
-  border-color: rgba(217, 83, 79, 0.45);
+  border-color: rgba(224, 93, 88, 0.45);
 }
 
 .he-badge {
@@ -502,7 +589,7 @@
 
 .he-submodal-box {
   width: 100%;
-  max-width: 580px;
+  max-width: 600px;
   max-height: 90vh;
   background: var(--he-bg);
   border: 1px solid var(--he-accent);
@@ -536,4 +623,4 @@
 
 .he-shelf-card-click:hover {
   background: var(--he-card-hover);
-   }
+}
